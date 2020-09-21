@@ -37,9 +37,6 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 @ApplicationScoped
 public class TelegramRoutes extends RouteBuilder {
 
-    @ConfigProperty(name = "camel.quarkus.start-mock-backend", defaultValue = "true")
-    boolean startMockBackend;
-
     @ConfigProperty(name = "telegram.authorization-token", defaultValue = "default-dummy-token")
     String authToken;
 
@@ -75,8 +72,7 @@ public class TelegramRoutes extends RouteBuilder {
 
     @Override
     public void configure() throws Exception {
-        if (startMockBackend) {
-            MockBackendUtils.logMockBackendUsed("telegram", getBaseUri());
+        if (MockBackendUtils.startMockBackend(true)) {
             /* Start the mock Telegram API unless the user did export CAMEL_QUARKUS_FALLBACK_MOCK=false */
             from("platform-http:/bot" + authToken + "/getUpdates?httpMethodRestrict=GET")
                     .process(e -> load("mock-messages/getUpdates.json", e));
@@ -94,8 +90,6 @@ public class TelegramRoutes extends RouteBuilder {
                         from("platform-http:/bot" + authToken + "/" + endpoint + "?httpMethodRestrict=POST")
                                 .process(e -> load("mock-messages/" + endpoint + ".json", e));
                     });
-        } else {
-            MockBackendUtils.logRealBackendUsed("telegram", getBaseUri());
         }
 
     }

@@ -16,25 +16,32 @@
  */
 package org.apache.camel.quarkus.test.mock.backend;
 
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.jboss.logging.Logger;
 
 public class MockBackendUtils {
 
+    private static boolean startMockBackend = ConfigProvider.getConfig()
+            .getOptionalValue("camel.quarkus.start-mock-backend", Boolean.class).orElse(Boolean.TRUE);
+
     private static final Logger LOG = Logger.getLogger(MockBackendUtils.class);
 
-    /**
-     * @param serviceName a human readable name of the service that is being mocked
-     * @param uri         the URI under which the mock is accessible
-     */
-    public static void logMockBackendUsed(String serviceName, String uri) {
-        LOG.infof("Mock backend will be used for %s: %s", serviceName, uri);
+    public static void logBackendUsed() {
+        if (startMockBackend) {
+            LOG.infof("Mock backend will be used");
+        } else {
+            LOG.infof("Real backend will be used");
+        }
     }
 
-    /**
-     * @param serviceName a human readable name of the real service that is being used
-     * @param uri         the URI under which the service is accessible
-     */
-    public static void logRealBackendUsed(String serviceName, String uri) {
-        LOG.infof("Real backend will be used for %s: %s", serviceName, uri);
+    public static boolean startMockBackend() {
+        return startMockBackend(false);
+    }
+
+    public static boolean startMockBackend(boolean printLogMessage) {
+        if (printLogMessage) {
+            logBackendUsed();
+        }
+        return startMockBackend;
     }
 }
