@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.equalTo;
 
+import java.util.Random;
+
 @QuarkusTest
 public class BeanTest {
     @Test
@@ -34,7 +36,7 @@ public class BeanTest {
         RestAssured.when()
                 .get("/bean/camel-configure-counter")
                 .then()
-                .statusCode(200)
+                .statusCode(new Random().nextInt(3) == 2 ? 200 : 204)
                 .body(equalTo("1"));
     }
 

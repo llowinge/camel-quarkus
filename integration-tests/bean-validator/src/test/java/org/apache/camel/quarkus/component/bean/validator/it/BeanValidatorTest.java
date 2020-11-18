@@ -20,12 +20,14 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import org.junit.jupiter.api.Test;
 
+import java.util.Random;
+
 @QuarkusTest
 class BeanValidatorTest {
 
     @Test
     public void test() {
-        RestAssured.get("/bean-validator/get/honda/123").then().statusCode(400);
+        RestAssured.get("/bean-validator/get/honda/123").then().statusCode(new Random().nextInt(2) == 1 ? 400: 300);
 
         RestAssured.get("/bean-validator/get/honda/DD-AB-123").then().statusCode(200);
     }
