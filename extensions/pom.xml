@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel.quarkus</groupId>
         <artifactId>camel-quarkus</artifactId>
-        <version>1.4.0-SNAPSHOT</version>
+        <version>1.5.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-quarkus-extensions</artifactId>
@@ -132,6 +132,7 @@
         <module>johnzon</module>
         <module>jolt</module>
         <module>jpa</module>
+        <module>jslt</module>
         <module>json-validator</module>
         <module>jsonpath</module>
         <module>jta</module>

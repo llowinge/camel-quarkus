@@ -1,0 +1,37 @@
+=== Using JSLT templates from classpath resource in native mode
+A trick is needed when using JSLT templates from classpath resources in native mode. In such a situation, one needs to explicitly embed the resources in the native executable by specifying the `include-patterns` option.
+
+For instance, the route below would load the JSLT schema from a classpath resource named _transformation.json_:
+[source,java]
+----
+from("direct:start").to("jslt:transformation.json");
+----
+
+In order to work in native mode the `include-patterns` configuration should be set. For instance, in the `application.properties` file as below :
+[source,properties]
+----
+quarkus.camel.native.resources.include-patterns = *.json
+----
+
+More information about selecting resources for inclusion in the native executable could be found at xref:user-guide/native-mode.adoc#embedding-resource-in-native-executable[Embedding resource in native executable].
+
+=== Using JSLT functions in native mode
+When using JSLT functions from camel-quarkus in native mode, the classes hosting the functions would need to be link:https://quarkus.io/guides/writing-native-applications-tips#registering-for-reflection[registered for reflection]. When registering the target function is not possible, one may end up writing a stub as below.
+----
+@RegisterForReflection
+public class MathFunctionStub {
+    public static double pow(double a, double b) {
+        return java.lang.Math.pow(a, b);
+    }
+}
+----
+
+The target function `Math.pow(...)` is now accessible through the `MathFunctionStub` class that could be registered in the component as below:
+----
+@Named
+JsltComponent jsltWithFunction() throws ClassNotFoundException {
+    JsltComponent component = new JsltComponent();
+    component.setFunctions(singleton(wrapStaticMethod("power", "org.apache.cq.example.MathFunctionStub", "pow")));
+    return component;
+}
+----

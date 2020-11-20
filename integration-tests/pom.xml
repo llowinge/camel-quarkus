@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel.quarkus</groupId>
         <artifactId>camel-quarkus-build-parent-it</artifactId>
-        <version>1.4.0-SNAPSHOT</version>
+        <version>1.5.0-SNAPSHOT</version>
         <relativePath>../poms/build-parent-it/pom.xml</relativePath>
     </parent>
 
@@ -112,6 +112,7 @@
         <module>jira</module>
         <module>jolt</module>
         <module>jpa</module>
+        <module>jslt</module>
         <module>json-validator</module>
         <module>jsonpath</module>
         <module>jta</module>
