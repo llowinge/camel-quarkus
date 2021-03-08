@@ -34,10 +34,23 @@
 
     <properties>
         <camel-quarkus.version>1.7.0-SNAPSHOT</camel-quarkus.version><!-- kept in sync with camel-quarkus.version by the release plugin -->
+        <quarkus.ts.version>1.0.0-SNAPSHOT</quarkus.ts.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.quarkus.ts.openshift</groupId>
+                <artifactId>app-metadata</artifactId>
+                <version>${quarkus.ts.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.quarkus.ts.openshift</groupId>
+                <artifactId>common</artifactId>
+                <scope>test</scope>
+                <version>${quarkus.ts.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.apache.camel.quarkus</groupId>
                 <artifactId>camel-quarkus-bom</artifactId>

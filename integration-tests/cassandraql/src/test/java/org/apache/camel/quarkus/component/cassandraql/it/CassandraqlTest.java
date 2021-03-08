@@ -16,8 +16,6 @@
  */
 package org.apache.camel.quarkus.component.cassandraql.it;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import org.hamcrest.Matcher;
@@ -32,14 +30,13 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
 
-@QuarkusTest
-@QuarkusTestResource(CassandraqlTestResource.class)
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CassandraqlTest {
 
     private Employee sheldon = new Employee(1, "Sheldon", "Alpha Centauri");
     private Employee leonard = new Employee(2, "Leonard", "Earth");
     private Employee irma = new Employee(3, "Irma", "Jupiter");
+
 
     @Test
     @Order(1)

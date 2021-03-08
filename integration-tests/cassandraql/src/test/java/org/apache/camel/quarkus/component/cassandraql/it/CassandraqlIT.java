@@ -16,9 +16,12 @@
  */
 package org.apache.camel.quarkus.component.cassandraql.it;
 
-import io.quarkus.test.junit.NativeImageTest;
+import io.quarkus.ts.openshift.common.AdditionalResources;
+import io.quarkus.ts.openshift.common.OpenShiftTest;
 
-@NativeImageTest
+//@NativeImageTest
+@OpenShiftTest
+@AdditionalResources("classpath:cassandraql.yaml")
 class CassandraqlIT extends CassandraqlTest {
 
 }
