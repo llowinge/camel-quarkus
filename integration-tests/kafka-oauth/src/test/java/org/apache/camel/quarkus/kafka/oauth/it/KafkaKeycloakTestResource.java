@@ -16,6 +16,7 @@
  */
 package org.apache.camel.quarkus.kafka.oauth.it;
 
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,6 +24,7 @@ import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import io.strimzi.test.container.StrimziKafkaContainer;
 import org.apache.camel.quarkus.kafka.oauth.it.container.KeycloakContainer;
 import org.jboss.logging.Logger;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
 import static io.strimzi.test.container.StrimziKafkaContainer.KAFKA_PORT;
@@ -42,6 +44,8 @@ public class KafkaKeycloakTestResource implements QuarkusTestResourceLifecycleMa
 
         //Start keycloak container
         keycloak = new KeycloakContainer();
+        keycloak.waitingFor(Wait.forLogMessage(".*WFLYSRV0025.*", 1));
+        keycloak.withStartupTimeout(Duration.ofMinutes(5));
         keycloak.start();
         log.info(keycloak.getLogs());
         keycloak.createHostsFile();
