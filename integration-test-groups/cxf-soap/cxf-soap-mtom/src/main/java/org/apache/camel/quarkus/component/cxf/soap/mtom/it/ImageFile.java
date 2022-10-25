@@ -16,16 +16,26 @@
  */
 package org.apache.camel.quarkus.component.cxf.soap.mtom.it;
 
-import javax.jws.WebMethod;
-import javax.jws.WebService;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
-@WebService
-public interface IImageService {
+@RegisterForReflection
+public class ImageFile {
 
-    @WebMethod
-    ImageFile downloadImage(String name);
+    public ImageFile() {
+    }
 
-    @WebMethod
-    String uploadImage(ImageFile image, String name);
+    private byte[] content;
+
+    public ImageFile(byte[] content) {
+        this.content = content;
+    }
+
+    public byte[] getContent() {
+        return this.content;
+    }
+
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
 
 }

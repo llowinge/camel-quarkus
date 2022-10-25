@@ -126,7 +126,7 @@ public class CxfSoapMtomRoutes extends RouteBuilder {
         result.setMtomEnabled(mtomEnabled);
         result.setAddress(address);
         List<Handler> handlers = new ArrayList<>();
-        handlers.add(new MtomAttachmentChecker(mtomEnabled));
+        //        handlers.add(new MtomAttachmentChecker(mtomEnabled));
         result.setHandlers(handlers);
         return result;
     }
