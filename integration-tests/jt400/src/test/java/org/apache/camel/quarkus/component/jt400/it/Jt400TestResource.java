@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -32,22 +31,21 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.ibm.as400.access.AS400;
-import com.ibm.as400.access.AS400SecurityException;
 import com.ibm.as400.access.DataQueue;
 import com.ibm.as400.access.DataQueueEntry;
 import com.ibm.as400.access.ErrorCompletingRequestException;
+import com.ibm.as400.access.IFSFileInputStream;
+import com.ibm.as400.access.IFSKey;
 import com.ibm.as400.access.KeyedDataQueue;
 import com.ibm.as400.access.KeyedDataQueueEntry;
 import com.ibm.as400.access.MessageQueue;
 import com.ibm.as400.access.ObjectDoesNotExistException;
 import com.ibm.as400.access.QueuedMessage;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.awaitility.Awaitility;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.hamcrest.Matchers;
 import org.jboss.logging.Logger;
-import org.junit.jupiter.api.Assertions;
 
 public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
     private static final Logger LOGGER = Logger.getLogger(Jt400TestResource.class);
@@ -78,9 +76,10 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
     private final static int CLEAR_DEPTH = 100;
     public final static String LOCK_KEY = "cq.jt400.global-lock";
     //5 minute timeout to obtain a log for the tests execution
-    private final static int LOCK_TIMEOUT = 300000;
+    private final static int LOCK_TIMEOUT = 600000;
 
-    private static AS400 as400 = new AS400(JT400_URL, JT400_USERNAME, JT400_PASSWORD);;
+    //todo rename to global connection
+    private static AS400 lockAs400;
 
     @Override
     public Map<String, String> start() {
@@ -90,13 +89,20 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
 
     @Override
     public void stop() {
-        if (as400 != null) {
-            try {
-                CLIENT_HELPER.clearAll(JT400_CLEAR_ALL.isPresent() && Boolean.parseBoolean(JT400_CLEAR_ALL.get()));
-            } catch (Exception e) {
-                LOGGER.debug("Clearing of the external queues failed", e);
-            }
-            as400.close();
+
+        //clear data after tests and before unlocking
+        try {
+            //            System.out.println("--------------------------------");
+            //            System.out.println("------------- clear -------------");
+            //            System.out.println("--------------------------------");
+            //            CLIENT_HELPER.clear();
+            CLIENT_HELPER.unlock();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (lockAs400 != null) {
+            lockAs400.close();
         }
     }
 
@@ -106,8 +112,11 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
 
     public static Jt400ClientHelper CLIENT_HELPER = new Jt400ClientHelper() {
 
-        private String key = null;
+        private boolean cleared = false;
         Map<RESOURCE_TYPE, Set<Object>> toRemove = new HashMap<>();
+
+        IFSFileInputStream lockFile;
+        IFSKey lockKey;
 
         @Override
         public QueuedMessage peekReplyToQueueMessage(String msg) throws Exception {
@@ -115,18 +124,24 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
         }
 
         private QueuedMessage getQueueMessage(String queue, String msg) throws Exception {
-            MessageQueue messageQueue = new MessageQueue(as400,
-                    getObjectPath(queue));
-            Enumeration<QueuedMessage> msgs = messageQueue.getMessages();
+            AS400 as400 = createAs400();
+            try {
+                MessageQueue messageQueue = new MessageQueue(as400,
+                        getObjectPath(queue));
+                Enumeration<QueuedMessage> msgs = messageQueue.getMessages();
 
-            while (msgs.hasMoreElements()) {
-                QueuedMessage queuedMessage = msgs.nextElement();
+                while (msgs.hasMoreElements()) {
+                    QueuedMessage queuedMessage = msgs.nextElement();
 
-                if (msg.equals(queuedMessage.getText())) {
-                    return queuedMessage;
+                    if (msg.equals(queuedMessage.getText())) {
+                        return queuedMessage;
+                    }
                 }
+                return null;
+
+            } finally {
+                as400.close();
             }
-            return null;
         }
 
         @Override
@@ -141,7 +156,29 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
         }
 
         @Override
-        public void clearAll(boolean all) throws Exception {
+        public boolean clear() throws Exception {
+            Thread.sleep(1000);
+            //clear only once
+            if (cleared) {
+                return false;
+            }
+            //            boolean all = JT400_CLEAR_ALL.isPresent() && Boolean.parseBoolean(JT400_CLEAR_ALL.get());
+            boolean all = true;
+            if (all) {
+                LOGGER.debug("Attention! Clearing all data.");
+            }
+
+            //            try (AS400 as400 = createAs400()) {
+            AS400 as400 = lockAs400;
+            //reply-to queue
+            MessageQueue rq = new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE));
+
+            if (all) {
+                rq.remove();
+            } else if (toRemove.containsKey(RESOURCE_TYPE.replyToQueueu)) {
+                clearMessageQueue(RESOURCE_TYPE.replyToQueueu, rq);
+            }
+
             //message queue
             MessageQueue mq = new MessageQueue(as400, getObjectPath(JT400_MESSAGE_QUEUE));
             if (all) {
@@ -174,13 +211,6 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
                     }
                 }
             }
-            //reply-to queue
-            MessageQueue rq = new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE));
-            if (all) {
-                rq.remove();
-            } else if (toRemove.containsKey(RESOURCE_TYPE.replyToQueueu)) {
-                clearMessageQueue(RESOURCE_TYPE.replyToQueueu, rq);
-            }
 
             //keyed queue
             KeyedDataQueue kdq = new KeyedDataQueue(as400, getObjectPath(JT400_KEYED_QUEUE));
@@ -191,141 +221,144 @@ public class Jt400TestResource implements QuarkusTestResourceLifecycleManager {
                     kdq.clear((String) entry);
                 }
             }
+            //            }
+
+            return true;
         }
 
-        private void clearMessageQueue(RESOURCE_TYPE type, MessageQueue mq) throws AS400SecurityException,
+        private void clearMessageQueue(RESOURCE_TYPE type, MessageQueue mq) throws Exception,
                 ErrorCompletingRequestException, InterruptedException, IOException, ObjectDoesNotExistException {
             if (!toRemove.get(type).isEmpty()) {
                 List<QueuedMessage> msgs = Collections.list(mq.getMessages());
-                Map<String, byte[]> keys = msgs.stream().collect(Collectors.toMap(q -> q.getText(), q -> q.getKey()));
+                Map<String, Set<byte[]>> keys = new HashMap<>();
+                for (QueuedMessage queuedMessage : msgs) {
+                    if (!keys.containsKey(queuedMessage.getText())) {
+                        keys.put(queuedMessage.getText(), new HashSet<>());
+                    }
+                    keys.get(queuedMessage.getText()).add(queuedMessage.getKey());
+                }
+                System.out.println(type + " before: " + msgs.size());
                 for (Object entry : toRemove.get(type)) {
+                    LOGGER.debug("Removing msg " + entry + " from the queue " + type);
                     if (entry instanceof String) {
-                        mq.remove(keys.get((String) entry));
+                        for (byte[] key : keys.get((String) entry)) {
+                            mq.remove(key);
+                        }
                     } else {
                         mq.remove((byte[]) entry);
                     }
                 }
+                System.out.println(type + " after: " + Collections.list(mq.getMessages()).size());
             }
         }
 
         /**
-         * Keyed dataque (FIFO) is used for locking purposes.
+         * Locking mechanism is based on Integrated file system and it file locking (which is part of JTOpen)
          *
-         * - Each participant saves unique token into a key cq.jt400.global-lock
-         * - Each participant the reads the FIFO queue and if the resulted string is its own unique token, execution is allowed
-         * - When execution ends, the key is removed
+         * File <i>/home/${JT400_USERNAME}/lock</i> has to exists.
+         * Each lock ateempt asks for lock of inputStream for that file.
+         * At the end of the execution the lock is released.
          *
-         * If the token is not its own
-         * -read of the token is repeated until timeout or its own token is returned (so the second participant waits, until the
-         * first participant removes its token)
-         *
-         * Dead lock prevention
-         *
-         * - part of the unique token is timestamp, if participant finds a token, which is too old, token is removed
-         * - action to clear-all data removes also the locking tokens
-         *
-         *
-         * Therefore only 1 token (thus 1 participant) is allowed to run the tests, the others have to wait
-         *
-         * @throws Exception
+         * Important!
+         * The underlying AS400 (used for opening the stream) has to stay connected, otherwise the lock is released.
          */
         @Override
         public void lock() throws Exception {
-            if (key == null) {
-                key = generateKey();
-                //write key into keyed queue
-                KeyedDataQueue kdq = new KeyedDataQueue(as400, getObjectPath(JT400_KEYED_QUEUE));
 
-                Assertions.assertTrue(kdq.isFIFO(), "keyed dataqueue has to be FIFO");
+            if (lockKey == null) {
+                lockAs400 = createAs400();
+                lockFile = new IFSFileInputStream(lockAs400, "/home/REDHAT5/lock");
 
-                kdq.write(LOCK_KEY, key);
+                LOGGER.debug("Asked for lock.");
 
-                //added 5 seconds for the timeout, to have some spare time for removing old locks
-                Awaitility.await().pollInterval(1, TimeUnit.SECONDS).atMost(LOCK_TIMEOUT + 5000, TimeUnit.SECONDS)
-                        .until(
-                                () -> {
-                                    KeyedDataQueueEntry kdqe = kdq.peek(LOCK_KEY);
-                                    if (kdqe == null) {
-                                        //if kdqe is null, try to lock again
-                                        LOGGER.debug("locked in the queueu was removed, locking again with " + key);
-                                        kdq.write(LOCK_KEY, key);
-                                    }
-                                    String peekedKey = kdqe == null ? null : kdqe.getString();
-                                    //if waiting takes more than 300s, check whether the actual lock can be removed
-                                    LOGGER.debug("peeked lock " + peekedKey + "(my lock is " + key + ")");
+                Awaitility.await().pollInterval(1, TimeUnit.SECONDS).atMost(LOCK_TIMEOUT, TimeUnit.SECONDS)
+                        .until(() -> {
+                            try {
+                                lockKey = lockFile.lock(1l);
+                            } catch (Exception e) {
+                                //lock was not acquired
+                                return false;
+                            }
+                            LOGGER.debug("Acquired lock.");
+                            return true;
 
-                                    if (peekedKey != null && !key.equals(peekedKey)) {
-                                        long peekedTime = Long.parseLong(peekedKey.substring(11));
-                                        if (System.currentTimeMillis() - peekedTime > LOCK_TIMEOUT) {
-                                            //read the key (therefore remove it)
-                                            String readKey = kdq.read(LOCK_KEY).getString();
-                                            System.out.println("Removed old lock " + readKey);
-                                            peekedKey = kdq.peek(LOCK_KEY).getString();
-                                        }
-                                    }
-                                    return peekedKey;
-                                },
-                                Matchers.is(key));
+                        },
+                                Matchers.is(true));
             }
         }
 
         @Override
         public void unlock() throws Exception {
-            Assertions.assertEquals(key,
-                    new KeyedDataQueue(as400, getObjectPath(JT400_KEYED_QUEUE)).read(LOCK_KEY).getString());
-            //clear key
-            key = null;
-        }
-
-        private String generateKey() {
-            return RandomStringUtils.randomAlphanumeric(10).toLowerCase(Locale.ROOT) + ":" + System.currentTimeMillis();
+            if (lockKey != null) {
+                lockFile.unlock(lockKey);
+                LOGGER.debug("Released lock ");
+                lockKey = null;
+                lockAs400.close();
+                lockAs400 = null;
+                lockFile = null;
+            }
         }
 
         @Override
         public String dumpQueues() throws Exception {
-            StringBuilder sb = new StringBuilder();
+            AS400 as400 = createAs400();
+            try {
+                StringBuilder sb = new StringBuilder();
 
-            sb.append("\n* MESSAGE QUEUE\n");
-            sb.append("\t" + Collections.list(new MessageQueue(as400, getObjectPath(JT400_MESSAGE_QUEUE)).getMessages())
-                    .stream().map(mq -> mq.getText()).sorted().collect(Collectors.joining(", ")));
+                sb.append("\n* MESSAGE QUEUE\n");
+                sb.append("\t" + Collections.list(new MessageQueue(as400, getObjectPath(JT400_MESSAGE_QUEUE)).getMessages())
+                        .stream().map(mq -> mq.getText()).sorted().collect(Collectors.joining(", ")));
 
-            sb.append("\n* INQUIRY QUEUE\n");
-            sb.append("\t" + Collections
-                    .list(new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE)).getMessages())
-                    .stream().map(mq -> mq.getText()).sorted().collect(Collectors.joining(", ")));
+                sb.append("\n* INQUIRY QUEUE\n");
+                sb.append("\t" + Collections
+                        .list(new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE)).getMessages())
+                        .stream().map(mq -> mq.getText()).sorted().collect(Collectors.joining(", ")));
 
-            sb.append("\n* LIFO QUEUE\n");
-            DataQueue dq = new DataQueue(as400, getObjectPath(JT400_LIFO_QUEUE));
-            DataQueueEntry dqe;
-            List<byte[]> lifoMessages = new LinkedList<>();
-            List<String> lifoTexts = new LinkedList<>();
-            do {
-                dqe = dq.read();
-                if (dqe != null) {
-                    lifoTexts.add(dqe.getString() + " (" + new String(dqe.getData(), StandardCharsets.UTF_8) + ")");
-                    lifoMessages.add(dqe.getData());
+                sb.append("\n* LIFO QUEUE\n");
+                DataQueue dq = new DataQueue(as400, getObjectPath(JT400_LIFO_QUEUE));
+                DataQueueEntry dqe;
+                List<byte[]> lifoMessages = new LinkedList<>();
+                List<String> lifoTexts = new LinkedList<>();
+                do {
+                    dqe = dq.read();
+                    if (dqe != null) {
+                        lifoTexts.add(dqe.getString() + " (" + new String(dqe.getData(), StandardCharsets.UTF_8) + ")");
+                        lifoMessages.add(dqe.getData());
+                    }
+                } while (dqe != null);
+
+                //write back other messages in reverse order (it is a lifo)
+                Collections.reverse(lifoMessages);
+                for (byte[] msg : lifoMessages) {
+                    dq.write(msg);
                 }
-            } while (dqe != null);
+                sb.append(lifoTexts.stream().collect(Collectors.joining(", ")));
 
-            //write back other messages in reverse order (it is a lifo)
-            Collections.reverse(lifoMessages);
-            for (byte[] msg : lifoMessages) {
-                dq.write(msg);
+                sb.append("\n* KEYED DATA QUEUE\n");
+                KeyedDataQueue kdq = new KeyedDataQueue(as400, getObjectPath(JT400_KEYED_QUEUE));
+                KeyedDataQueueEntry kdqe = kdq.peek(LOCK_KEY);
+                sb.append("\tlock: " + (kdqe == null ? "null" : kdqe.getString()));
+                return sb.toString();
+
+            } finally {
+                as400.close();
             }
-            sb.append(lifoTexts.stream().collect(Collectors.joining(", ")));
-
-            sb.append("\n* KEYED DATA QUEUE\n");
-            KeyedDataQueue kdq = new KeyedDataQueue(as400, getObjectPath(JT400_KEYED_QUEUE));
-            KeyedDataQueueEntry kdqe = kdq.peek(LOCK_KEY);
-            sb.append("\tlock: " + (kdqe == null ? "null" : kdqe.getString()));
-            return sb.toString();
         }
 
         public void sendInquiry(String msg) throws Exception {
-            new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE)).sendInquiry(msg,
-                    getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE));
+            AS400 as400 = createAs400();
+            try {
+                new MessageQueue(as400, getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE)).sendInquiry(msg,
+                        getObjectPath(JT400_REPLY_TO_MESSAGE_QUEUE));
+            } finally {
+                as400.close();
+            }
         }
     };
+
+    private static AS400 createAs400() {
+        return new AS400(JT400_URL, JT400_USERNAME, JT400_PASSWORD);
+    }
 
 }
 
@@ -339,7 +372,7 @@ interface Jt400ClientHelper {
 
     //------------------- clear listeners ------------------------------
 
-    void clearAll(boolean all) throws Exception;
+    boolean clear() throws Exception;
 
     //----------------------- locking
 
