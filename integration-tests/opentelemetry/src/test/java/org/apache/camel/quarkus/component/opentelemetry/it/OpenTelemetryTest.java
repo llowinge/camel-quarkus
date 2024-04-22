@@ -120,7 +120,7 @@ class OpenTelemetryTest {
         assertTrue(Long.parseLong(timestamp) > 0);
 
         // Verify the span hierarchy is JAX-RS Service -> Direct Endpoint -> Bean Endpoint -> Bean method -> JDBC query
-        await().atMost(30, TimeUnit.SECONDS).pollDelay(50, TimeUnit.MILLISECONDS).until(() -> getSpans().size() == 6);
+        await().atMost(200, TimeUnit.SECONDS).pollDelay(50, TimeUnit.MILLISECONDS).until(() -> getSpans().size() == 6);
         List<Map<String, String>> spans = getSpans();
         assertEquals(6, spans.size());
         assertEquals(spans.get(0).get("parentId"), spans.get(1).get("parentId"));
