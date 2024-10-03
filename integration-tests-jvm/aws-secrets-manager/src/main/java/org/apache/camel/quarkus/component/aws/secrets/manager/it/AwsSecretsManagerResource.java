@@ -35,12 +35,14 @@ import jakarta.ws.rs.core.Response;
 import org.apache.camel.CamelContext;
 import org.apache.camel.Exchange;
 import org.apache.camel.ProducerTemplate;
+import org.apache.camel.component.aws.secretsmanager.SecretsManagerConstants;
 import org.apache.camel.component.aws.secretsmanager.SecretsManagerOperations;
 import org.apache.camel.spi.PeriodTaskResolver;
 import org.apache.camel.support.PluginHelper;
 import org.apache.camel.util.CollectionHelper;
 import org.jboss.logging.Logger;
 import software.amazon.awssdk.services.secretsmanager.model.CreateSecretResponse;
+import software.amazon.awssdk.services.secretsmanager.model.DeleteSecretRequest;
 import software.amazon.awssdk.services.secretsmanager.model.DeleteSecretResponse;
 import software.amazon.awssdk.services.secretsmanager.model.DescribeSecretResponse;
 import software.amazon.awssdk.services.secretsmanager.model.ListSecretsResponse;
@@ -71,9 +73,20 @@ public class AwsSecretsManagerResource {
     public Response post(@PathParam("operation") String operation, @QueryParam("body") String body, Map<String, Object> headers)
             throws Exception {
 
+        final Object resultBody;
+        if (operation.equals("forceDeleteSecret")) {
+            operation = SecretsManagerOperations.deleteSecret.toString();
+            DeleteSecretRequest.Builder builder = DeleteSecretRequest.builder();
+            builder.secretId((String) headers.get(SecretsManagerConstants.SECRET_ID));
+            builder.forceDeleteWithoutRecovery(true);
+            resultBody = builder.build();
+        } else {
+            resultBody = body;
+        }
+
         Exchange ex = producerTemplate.send("aws-secrets-manager://test?operation=" + operation, e -> {
             e.getIn().setHeaders(headers);
-            e.getIn().setBody(body);
+            e.getIn().setBody(resultBody);
         });
 
         Object result;
@@ -82,7 +95,7 @@ public class AwsSecretsManagerResource {
             result = ex.getIn().getBody(CreateSecretResponse.class).arn();
             break;
         case listSecrets:
-            //returns map with ar as a key and a flag, whether is deleted or not
+            //returns list with arn as a key and a flag, whether is deleted or not
             result = ex.getIn().getBody(ListSecretsResponse.class).secretList().stream()
                     .collect(Collectors.toMap(SecretListEntry::arn, e -> e.deletedDate() == null ? false : true));
             break;
