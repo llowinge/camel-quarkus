@@ -1,51 +1,30 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.camel.quarkus.component.aws.secrets.manager.it;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import static org.hamcrest.CoreMatchers.is;
-
-import org.apache.camel.component.aws.secretsmanager.SecretsManagerConstants;
-import org.apache.camel.component.aws.secretsmanager.SecretsManagerOperations;
-import org.apache.camel.quarkus.test.mock.backend.MockBackendUtils;
-import org.apache.camel.quarkus.test.support.aws2.Aws2TestResource;
-import org.apache.camel.util.CollectionHelper;
-
-import org.junit.jupiter.api.Test;
-
-import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import io.quarkus.logging.Log;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import org.apache.camel.component.aws.secretsmanager.SecretsManagerConstants;
+import org.apache.camel.component.aws.secretsmanager.SecretsManagerOperations;
+import org.apache.camel.quarkus.test.mock.backend.MockBackendUtils;
+import org.apache.camel.quarkus.test.support.aws2.Aws2TestResource;
+import org.apache.camel.util.CollectionHelper;
+import org.junit.jupiter.api.Test;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
 @QuarkusTestResource(Aws2TestResource.class)
-class AwsSecretsManagerTest {
+public class AwsSecretsManagerTest extends AwsSecretsManagerAbstractTest {
 
     @Test
     public void testOperations() {
@@ -58,26 +37,7 @@ class AwsSecretsManagerTest {
         String createdArn2 = null;
 
         try {
-            String[] createdArnHolder = new String[1];
-
-            // let's wait for first creation bit longer (as with local developement it can take a bit longer)
-            Awaitility.await().pollInterval(5, TimeUnit.SECONDS).atMost(1, TimeUnit.MINUTES).until(
-                    () -> {
-                        try {
-                            createdArnHolder[0] = RestAssured.given()
-                                    .contentType(ContentType.JSON)
-                                    .body(Collections.singletonMap(SecretsManagerConstants.SECRET_NAME, nameToCreate))
-                                    .queryParam("body", secretToCreate)
-                                    .post("/aws-secrets-manager/operation/" + SecretsManagerOperations.createSecret)
-                                    .then()
-                                    .statusCode(201)
-                                    .extract().asString();
-                            return true;
-                        } catch (Exception e) {
-                            return false;
-                        }
-                    });
-            createdArn = createdArnHolder[0];
+            createdArn = createSecret(nameToCreate, secretToCreate);
             assertNotNull(createdArn);
 
             createdArn2 = RestAssured.given()
@@ -194,11 +154,14 @@ class AwsSecretsManagerTest {
                     });
 
             if (!MockBackendUtils.startMockBackend(false)) {
-                //        operation replicateSecretToRegions fails on local stack with 500
+                // operation replicateSecretToRegions fails on local stack with 500
+                // find different region then the actually used
+                String anotherRegion = regions().stream().filter(region -> !region.equals(region())).findFirst().get();
+
                 RestAssured.given()
                         .contentType(ContentType.JSON)
                         .body(CollectionHelper.mapOf(SecretsManagerConstants.SECRET_ID, createdArn2,
-                                SecretsManagerConstants.SECRET_REPLICATION_REGIONS, "us-east-1"))
+                                SecretsManagerConstants.SECRET_REPLICATION_REGIONS, anotherRegion))
                         .post("/aws-secrets-manager/operation/" + SecretsManagerOperations.replicateSecretToRegions)
                         .then()
                         .statusCode(201)
@@ -210,29 +173,6 @@ class AwsSecretsManagerTest {
                 deleteSecretImmediately(createdArn);
                 deleteSecretImmediately(createdArn2);
             }
-        }
-    }
-
-    private Map<String, Boolean> listSecrets() {
-        return RestAssured.given()
-                .contentType(ContentType.JSON)
-                .body(Collections.emptyMap())
-                .post("/aws-secrets-manager/operation/" + SecretsManagerOperations.listSecrets)
-                .then()
-                .statusCode(201)
-                .extract().as(Map.class);
-    }
-
-    private void deleteSecretImmediately(String arn) {
-        if (arn != null) {
-            Log.info("Deleting secret: " + arn);
-            RestAssured.given()
-                    .contentType(ContentType.JSON)
-                    .body(Collections.singletonMap(SecretsManagerConstants.SECRET_ID, arn))
-                    .post("/aws-secrets-manager/operation/forceDeleteSecret")
-                    .then()
-                    .statusCode(201)
-                    .body(is("true"));
         }
     }
 

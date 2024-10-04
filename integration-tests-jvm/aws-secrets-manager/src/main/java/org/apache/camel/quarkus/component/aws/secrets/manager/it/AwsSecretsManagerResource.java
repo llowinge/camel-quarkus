@@ -84,10 +84,16 @@ public class AwsSecretsManagerResource {
             resultBody = body;
         }
 
-        Exchange ex = producerTemplate.send("aws-secrets-manager://test?operation=" + operation, e -> {
-            e.getIn().setHeaders(headers);
-            e.getIn().setBody(resultBody);
-        });
+        String region = "";
+        if (headers.containsKey("region")) {
+            region = String.format("region=%s&", headers.get("region"));
+        }
+
+        Exchange ex = producerTemplate.send(String.format("aws-secrets-manager://test?%soperation=%s", region, operation),
+                e -> {
+                    e.getIn().setHeaders(headers);
+                    e.getIn().setBody(resultBody);
+                });
 
         Object result;
         switch (SecretsManagerOperations.valueOf(operation)) {
