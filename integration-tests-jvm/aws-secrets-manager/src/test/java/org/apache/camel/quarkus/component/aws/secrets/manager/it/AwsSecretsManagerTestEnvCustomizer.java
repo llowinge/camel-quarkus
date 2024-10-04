@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import org.apache.camel.quarkus.test.support.aws2.Aws2TestEnvContext;
 import org.apache.camel.quarkus.test.support.aws2.Aws2TestEnvCustomizer;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.testcontainers.containers.localstack.LocalStackContainer.Service;
 
 public class AwsSecretsManagerTestEnvCustomizer implements Aws2TestEnvCustomizer {
@@ -45,5 +46,15 @@ public class AwsSecretsManagerTestEnvCustomizer implements Aws2TestEnvCustomizer
         for (Map.Entry<String, String> e : p2.entrySet()) {
             envContext.property(e.getKey(), e.getValue());
         }
+
+        ConfigProvider.getConfig()
+                .getOptionalValue("camel.vault.aws.refreshEnabled", boolean.class)
+                .ifPresent(refreshEnabled -> {
+                    if (refreshEnabled) {
+                        envContext.property("camel.vault.aws.accessKey", p2.get("camel.component.aws-secrets-manager.access-key"));
+                        envContext.property("camel.vault.aws.secretKey", p2.get("camel.component.aws-secrets-manager.secret-key"));
+                        envContext.property("camel.vault.aws.region", p2.get("camel.component.aws-secrets-manager.region"));
+                    }
+                });
     }
 }
