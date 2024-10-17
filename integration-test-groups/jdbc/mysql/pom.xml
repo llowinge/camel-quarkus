@@ -289,6 +289,8 @@
                             <systemPropertyVariables>
                                 <quarkus.datasource.mysql.devservices.properties.authenticationPlugins>org.apache.camel.quarkus.component.jdbc.mysql.Sha256FIPSPasswordPlugin</quarkus.datasource.mysql.devservices.properties.authenticationPlugins>
                                 <quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>caching_sha2_password</quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>
+                                <quarkus.datasource.mysql.devservices.properties.allowPublicKeyRetrieval>true</quarkus.datasource.mysql.devservices.properties.allowPublicKeyRetrieval>
+                                <quarkus.datasource.mysql.devservices.properties.useSSL>false</quarkus.datasource.mysql.devservices.properties.useSSL>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
