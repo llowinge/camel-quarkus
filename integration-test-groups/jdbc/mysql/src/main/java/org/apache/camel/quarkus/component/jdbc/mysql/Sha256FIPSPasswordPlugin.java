@@ -16,11 +16,12 @@
  */
 package org.apache.camel.quarkus.component.jdbc.mysql;
 
+import com.mysql.cj.protocol.a.authentication.CachingSha2PasswordPlugin;
 import com.mysql.cj.protocol.a.authentication.Sha256PasswordPlugin;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 
 @RegisterForReflection
-public class Sha256FIPSPasswordPlugin extends Sha256PasswordPlugin {
+public class Sha256FIPSPasswordPlugin extends CachingSha2PasswordPlugin {
 
     public Sha256FIPSPasswordPlugin() {
         super();
@@ -28,7 +29,7 @@ public class Sha256FIPSPasswordPlugin extends Sha256PasswordPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "sha256_password";
+        return "caching_sha2_password";
     }
 
     @Override

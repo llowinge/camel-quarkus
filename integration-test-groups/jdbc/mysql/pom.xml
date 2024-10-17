@@ -288,7 +288,7 @@
                         <configuration>
                             <systemPropertyVariables>
                                 <quarkus.datasource.mysql.devservices.properties.authenticationPlugins>org.apache.camel.quarkus.component.jdbc.mysql.Sha256FIPSPasswordPlugin</quarkus.datasource.mysql.devservices.properties.authenticationPlugins>
-                                <quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>sha256_password</quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>
+                                <quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>caching_sha2_password</quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
