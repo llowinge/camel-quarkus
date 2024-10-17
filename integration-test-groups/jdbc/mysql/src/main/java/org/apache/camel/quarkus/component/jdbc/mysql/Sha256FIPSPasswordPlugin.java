@@ -29,7 +29,7 @@ public class Sha256FIPSPasswordPlugin extends CachingSha2PasswordPlugin {
 
     @Override
     public String getProtocolPluginName() {
-        return "caching_sha2_password";
+        return "cq_fips_plugin";
     }
 
     @Override
