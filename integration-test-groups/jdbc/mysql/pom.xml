@@ -37,6 +37,14 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-devservices-mysql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-datasource-deployment</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.camel.quarkus</groupId>
             <artifactId>camel-quarkus-jdbc</artifactId>
         </dependency>
@@ -279,12 +287,8 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <systemPropertyVariables>
-                                <quarkus.datasource.mysql.jdbc.additional-jdbc-properties.authenticationPlugins>org.apache.camel.quarkus.component.jdbc.mysql.Sha256FIPSPasswordPlugin</quarkus.datasource.mysql.jdbc.additional-jdbc-properties.authenticationPlugins>
-                                <quarkus.datasource.mysql.jdbc.additional-jdbc-properties.defaultAuthenticationPlugin>cq_fips_plugin</quarkus.datasource.mysql.jdbc.additional-jdbc-properties.defaultAuthenticationPlugin>
-                                <quarkus.datasource.mysql.devservices.enabled>false</quarkus.datasource.mysql.devservices.enabled>
-                                <quarkus.datasource.mysql.username>${env.MYSQL_JDBC_USERNAME}</quarkus.datasource.mysql.username>
-                                <quarkus.datasource.mysql.password>${env.MYSQL_JDBC_PASSWORD}</quarkus.datasource.mysql.password>
-                                <quarkus.datasource.mysql.jdbc.url>${env.MYSQL_JDBC_URL}</quarkus.datasource.mysql.jdbc.url>
+                                <quarkus.datasource.mysql.devservices.properties.authenticationPlugins>org.apache.camel.quarkus.component.jdbc.mysql.Sha256FIPSPasswordPlugin</quarkus.datasource.mysql.devservices.properties.authenticationPlugins>
+                                <quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>caching_sha2_password</quarkus.datasource.mysql.devservices.properties.defaultAuthenticationPlugin>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
@@ -295,10 +299,6 @@
                             <systemPropertyVariables>
                                 <quarkus.datasource.mysql.jdbc.additional-jdbc-properties.authenticationPlugins>org.apache.camel.quarkus.component.jdbc.mysql.Sha256FIPSPasswordPlugin</quarkus.datasource.mysql.jdbc.additional-jdbc-properties.authenticationPlugins>
                                 <quarkus.datasource.mysql.jdbc.additional-jdbc-properties.defaultAuthenticationPlugin>cq_fips_plugin</quarkus.datasource.mysql.jdbc.additional-jdbc-properties.defaultAuthenticationPlugin>
-                                <quarkus.datasource.mysql.devservices.enabled>false</quarkus.datasource.mysql.devservices.enabled>
-                                <quarkus.datasource.mysql.username>${env.MYSQL_JDBC_USERNAME}</quarkus.datasource.mysql.username>
-                                <quarkus.datasource.mysql.password>${env.MYSQL_JDBC_PASSWORD}</quarkus.datasource.mysql.password>
-                                <quarkus.datasource.mysql.jdbc.url>${env.MYSQL_JDBC_URL}</quarkus.datasource.mysql.jdbc.url>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
