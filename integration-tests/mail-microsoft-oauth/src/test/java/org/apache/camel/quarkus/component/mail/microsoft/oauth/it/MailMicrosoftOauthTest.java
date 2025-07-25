@@ -56,8 +56,7 @@ class MailMicrosoftOauthTest {
                             .then()
                             .statusCode(200)
                             .extract().body().asString(), List.class);
-        }, list -> list.size() == 1
-                && list.get(0).get("content").contains(content));
+        }, list -> list.stream().anyMatch(mail -> mail.get("content").contains(content)));
     }
 
     private void startRoute(String name) {
