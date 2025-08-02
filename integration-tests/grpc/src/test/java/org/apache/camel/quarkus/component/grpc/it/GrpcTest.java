@@ -48,8 +48,8 @@ import org.apache.camel.util.StringHelper;
 import org.awaitility.Awaitility;
 import org.eclipse.microprofile.config.Config;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -80,6 +80,7 @@ class GrpcTest {
 
     private static final String GRPC_TEST_PING_VALUE = "PING";
     private static final int GRPC_TEST_PING_ID = 1234;
+    private static final Logger LOG = Logger.getLogger(GrpcTest.class);
 
     @ParameterizedTest
     @MethodSource("producerMethodPorts")
@@ -184,7 +185,6 @@ class GrpcTest {
         }
     }
 
-    @Disabled("https://github.com/apache/camel-quarkus/issues/3037")
     @Test
     public void forwardOnError() throws InterruptedException {
         Config config = ConfigProvider.getConfig();
@@ -666,6 +666,7 @@ class GrpcTest {
 
         @Override
         public void onNext(PongResponse value) {
+            LOG.infof("PongResponseStreamObserver#onNext:%s", value);
             pongResponse = value;
             if (simulateError) {
                 throw new IllegalStateException("Forced exception");
@@ -674,12 +675,14 @@ class GrpcTest {
 
         @Override
         public void onError(Throwable t) {
+            LOG.infof("PongResponseStreamObserver#onError:%s", t.getCause());
             latch.countDown();
             errorResponse = t;
         }
 
         @Override
         public void onCompleted() {
+            LOG.info("PongResponseStreamObserver#onCompleted");
             latch.countDown();
         }
     }
