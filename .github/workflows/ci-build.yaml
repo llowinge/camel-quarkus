@@ -309,7 +309,7 @@ jobs:
                 -Dquarkus.native.builder-image.pull=missing \
                 -Pnative,docker,ci \
                 --fail-at-end \
-                -pl "${NATIVE_MODULES[*]}"
+                -pl :camel-quarkus-integration-test-ftp
               if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
@@ -544,10 +544,17 @@ jobs:
         shell: bash
         run: |
           cd integration-tests
-          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
-            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
-            --fail-at-end \
-            clean verify
+          for i in {1..30}; do
+            echo "Running ${i} windows test"
+            ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+              -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
+              --fail-at-end \
+              clean verify -pl :camel-quarkus-integration-test-ftp
+            if [[ $? -ne 0 ]]; then
+                echo "Tests failed on attempt ${i}. Stopping the script."
+                exit 1 # Exit the entire script with an error code
+            fi
+          done
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
