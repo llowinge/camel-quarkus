@@ -275,6 +275,13 @@ jobs:
           tar -xzf ../maven-repo.tgz -C ~
           rm -f ../maven-repo.tgz
           df -h /
+      - name: build custom camel
+        shell: bash
+        run: |
+          DIR_CAMEL_BUILD=${{ runner.temp }}/camel-build
+          mkdir -p $DIR_CAMEL_BUILD
+          git clone -b enable-jasypt-test https://github.com/llowinge/camel.git $DIR_CAMEL_BUILD
+          (cd $DIR_CAMEL_BUILD/core/camel-main; ../../mvnw clean install -DskipTests)
       - name: Integration Tests
         run: |
           for MODULE in $(yq -M -N e ".${{ matrix.category }}" tooling/scripts/test-categories.yaml | grep -vE '^\s*#' | cut -f2 -d' '); do
