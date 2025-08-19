@@ -312,7 +312,7 @@ jobs:
                 -Dquarkus.native.builder-image.pull=missing \
                 -Pnative,docker,ci \
                 --fail-at-end \
-                -pl :camel-quarkus-integration-test-ftp
+                -pl :camel-quarkus-integration-test-jasypt
               if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
@@ -552,7 +552,7 @@ jobs:
             ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
               -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               --fail-at-end \
-              clean verify -pl :camel-quarkus-integration-test-ftp
+              clean verify -pl :camel-quarkus-integration-test-jasypt
             if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
