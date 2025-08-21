@@ -19,8 +19,8 @@ package org.apache.camel.quarkus.component.couchbase.it;
 import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.common.http.TestHTTPEndpoint;
 import io.quarkus.test.junit.QuarkusTest;
+import org.jboss.logging.Logger;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -28,11 +28,12 @@ import static org.hamcrest.CoreMatchers.equalTo;
 @QuarkusTest
 @TestHTTPEndpoint(CouchbaseResource.class)
 @QuarkusTestResource(CouchbaseTestResource.class)
-@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class CouchbaseDeleteTest {
+    private static final Logger LOG = Logger.getLogger(CouchbaseDeleteTest.class);
 
     @Test
     void testDelete() {
+        LOG.info("Delete test - getting DocumentID_1");
         // getting the document
         given()
                 .when()
@@ -40,7 +41,7 @@ class CouchbaseDeleteTest {
                 .then()
                 .statusCode(200)
                 .body(equalTo("hello1"));
-
+        LOG.info("Delete test - deleting DocumentID_1");
         // deleting the document
         given()
                 .when()

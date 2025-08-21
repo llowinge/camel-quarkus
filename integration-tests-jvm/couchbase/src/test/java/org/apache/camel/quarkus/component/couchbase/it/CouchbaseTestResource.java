@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Map;
 
 import com.couchbase.client.java.Cluster;
+import com.couchbase.client.java.kv.GetResult;
 import com.couchbase.client.java.manager.bucket.BucketSettings;
 import com.couchbase.client.java.manager.bucket.BucketType;
 import com.couchbase.client.java.manager.view.DesignDocument;
@@ -29,10 +30,12 @@ import com.couchbase.client.java.view.DesignDocumentNamespace;
 import io.quarkus.test.common.QuarkusTestResourceLifecycleManager;
 import org.apache.camel.util.CollectionHelper;
 import org.eclipse.microprofile.config.ConfigProvider;
+import org.jboss.logging.Logger;
 import org.testcontainers.couchbase.CouchbaseContainer;
 import org.testcontainers.utility.DockerImageName;
 
 public class CouchbaseTestResource implements QuarkusTestResourceLifecycleManager {
+    private static final Logger LOG = Logger.getLogger(CouchbaseTestResource.class);
     private static final DockerImageName COUCHBASE_IMAGE = DockerImageName
             .parse(ConfigProvider.getConfig().getValue("couchbase.container.image", String.class));
     public static final int KV_PORT = 11210;
@@ -110,15 +113,20 @@ public class CouchbaseTestResource implements QuarkusTestResourceLifecycleManage
                 bucketName,
                 Collections.singletonMap(bucketName, new View("function (doc, meta) {  emit(meta.id, doc);}")));
         cluster.bucket(bucketName).viewIndexes().upsertDesignDocument(designDoc, DesignDocumentNamespace.PRODUCTION);
+        LOG.info("Starting to wait");
         // wait for cluster
         cluster.bucket(bucketName).waitUntilReady(Duration.ofSeconds(30));
 
+        LOG.info("Done waiting");
         // insert some documents
         for (int i = 0; i < 3; i++) {
             cluster.bucket(bucketName).defaultCollection().upsert("DocumentID_" + i, "hello" + i);
         }
-
+        LOG.info("Starting to wait2");
         // wait for cluster
         cluster.bucket(bucketName).waitUntilReady(Duration.ofSeconds(30));
+        LOG.info("Done waiting2");
+        GetResult result = cluster.bucket(bucketName).defaultCollection().get("DocumentID_1");
+        LOG.info("Result: " + result);
     }
 }
