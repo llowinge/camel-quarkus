@@ -312,7 +312,7 @@ jobs:
                 -Dquarkus.native.builder-image.pull=missing \
                 -Pnative,docker,ci \
                 --fail-at-end \
-                -pl :camel-quarkus-integration-test-aws2-kinesis
+                -pl :camel-quarkus-integration-test-couchbase
               if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
@@ -546,13 +546,13 @@ jobs:
       - name: cd integration-tests && mvn clean verify
         shell: bash
         run: |
-          cd integration-test-groups
+          cd integration-tests-jvm
           for i in {1..50}; do
             echo "Running ${i} windows test of 50"
             ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
               -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               --fail-at-end \
-              clean verify -pl :camel-quarkus-integration-test-aws2-kinesis
+              clean verify -pl :camel-quarkus-integration-test-couchbase
             if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
