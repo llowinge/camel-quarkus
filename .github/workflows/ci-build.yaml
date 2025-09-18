@@ -298,14 +298,14 @@ jobs:
 
           IFS=,
           if [[ ${JVM_MODULES[@]} ]]; then
-            eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean test \
+            eval ./mvnw -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean test \
               -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               -Pdocker,ci \
               -pl "${JVM_MODULES[*]}"
           fi
 
           if [[ ${NATIVE_MODULES[@]} ]]; then
-            eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
+            eval ./mvnw -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
               -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               -Dquarkus.native.builder-image.pull=missing \
               -Pnative,docker,ci \
@@ -497,7 +497,7 @@ jobs:
           TEST_MODULES: ${{matrix.modules}}
         run: |
           cd integration-tests
-          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+          ../mvnw -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -pl "${TEST_MODULES// /,}" \
             -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
