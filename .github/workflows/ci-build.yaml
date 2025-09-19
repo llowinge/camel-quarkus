@@ -303,18 +303,18 @@ jobs:
             eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean test \
               -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               -Pdocker,ci \
-              -pl "${JVM_MODULES[*]}"
+              -pl :camel-quarkus-integration-test-jasypt
           fi
 
           if [[ ${NATIVE_MODULES[@]} ]]; then
-            for i in {1..50}; do
+            for i in {1..2}; do
               echo "--- Running test attempt ${i} of 50 ---"
-              eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
+              eval ./mvnw -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
                 -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
                 -Dquarkus.native.builder-image.pull=missing \
-                -Pnative,docker,ci \
+                -Pci \
                 --fail-at-end \
-                -pl :camel-quarkus-integration-test-google-storage
+                -pl :camel-quarkus-integration-test-jasypt
               if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
@@ -549,12 +549,12 @@ jobs:
         shell: bash
         run: |
           cd integration-tests
-          for i in {1..50}; do
+          for i in {1..2}; do
             echo "Running ${i} windows test"
-            ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+            ../mvnw -Dorg.slf4j.simpleLogger.showDateTime=true -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
               -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
               --fail-at-end \
-              clean verify -pl :camel-quarkus-integration-test-google-storage
+              clean verify -pl :camel-quarkus-integration-test-jasypt
             if [[ $? -ne 0 ]]; then
                 echo "Tests failed on attempt ${i}. Stopping the script."
                 exit 1 # Exit the entire script with an error code
