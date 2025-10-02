@@ -21,6 +21,7 @@ import io.quarkus.opentelemetry.runtime.config.runtime.OTelRuntimeConfig;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
+import org.apache.camel.opentelemetry2.CamelQuarkusOpenTelemetry2Tracer;
 import org.apache.camel.opentelemetry2.OpenTelemetryTracer;
 
 @Singleton
@@ -28,7 +29,6 @@ public class OpenTelemetry2TracerProducer {
 
     @Inject
     CamelOpenTelemetry2Config config;
-
     @Inject
     OTelRuntimeConfig oTelRuntimeConfig;
 
@@ -37,7 +37,7 @@ public class OpenTelemetry2TracerProducer {
     @DefaultBean
     public OpenTelemetryTracer getOpenTelemetry() {
         if (!oTelRuntimeConfig.sdkDisabled()) {
-            OpenTelemetryTracer openTelemetryTracer = new OpenTelemetryTracer();
+            OpenTelemetryTracer openTelemetryTracer = new CamelQuarkusOpenTelemetry2Tracer();
             if (config.excludePatterns().isPresent()) {
                 openTelemetryTracer.setExcludePatterns(config.excludePatterns().get());
             }
@@ -45,7 +45,6 @@ public class OpenTelemetry2TracerProducer {
             if (config.traceProcessors()) {
                 openTelemetryTracer.setTraceProcessors(config.traceProcessors());
             }
-
             return openTelemetryTracer;
         }
         return null;
