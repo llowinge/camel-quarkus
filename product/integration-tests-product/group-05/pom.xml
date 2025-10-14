@@ -55,8 +55,6 @@
         <module>../../../integration-tests/slack</module>
         <module>../../../integration-tests/smb</module>
         <module>../../../integration-tests/soap</module>
-        <module>../../../integration-tests/splunk</module>
-        <module>../../../integration-tests/splunk-hec</module>
         <module>../../../integration-tests/spring-rabbitmq</module>
         <module>../../../integration-tests/sql</module>
         <module>../../../integration-tests/ssh</module>
