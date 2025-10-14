@@ -97,37 +97,19 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
                 LOG.debug("Internal certificates are used for Splunk server.");
             }
 
+            container.withCopyToContainer(MountableFile.forClasspathResource("local_server.conf"),
+                    "/opt/splunk/etc/system/local/server.conf");
+            container.withCopyToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
+                    "/opt/splunk/etc/system/local/inputs.conf");
+            container.withCopyToContainer(MountableFile.forClasspathResource("local_indexes.conf"),
+                    "/opt/splunk/etc/system/local/indexes.conf");
+
             container.start();
-
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_server.conf"),
-                    "/opt/splunk/etc/system/local/server.conf");
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
-                    "/opt/splunk/etc/system/local/inputs.conf");
-
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_server.conf"),
-                    "/opt/splunk/etc/system/local/server.conf");
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
-                    "/opt/splunk/etc/system/local/inputs.conf");
-
-            container.execInContainer("sudo", "sed", "-i", "s/minFreeSpace = 5000/minFreeSpace = 100/",
-                    "/opt/splunk/etc/system/local/server.conf");
 
             /* uncomment for troubleshooting purposes - copy configuration from container
             container.copyFileFromContainer("/opt/splunk/etc/system/local/server.conf",
                     Path.of(getClass().getResource("/").getPath()).resolve("local_server_from_container.conf").toFile()
                             .getAbsolutePath());*/
-
-            assertExecResult(container.execInContainer("sudo", "microdnf", "--nodocs", "update", "tzdata"), "tzdata install");//install tzdata package so we can specify tz other than UTC
-
-            LOG.debug(banner);
-            LOG.debug("Restarting splunk server.");
-            LOG.debug(banner);
-
-            assertExecResult(container.execInContainer("sudo", "./bin/splunk", "restart"), "splunk restart");
-
-            container.execInContainer("sudo", "./bin/splunk", "add", "index", TEST_INDEX);
-            container.execInContainer("sudo", "./bin/splunk", "add", "tcp", String.valueOf(SplunkConstants.TCP_PORT),
-                    "-sourcetype", "TCP");
 
             /*uncomment for troubleshooting purposes - copy from container conf and log files
             container.copyFileFromContainer("/opt/splunk/etc/system/local/server.conf",
