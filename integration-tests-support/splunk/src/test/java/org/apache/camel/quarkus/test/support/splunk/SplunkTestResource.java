@@ -17,9 +17,12 @@
 package org.apache.camel.quarkus.test.support.splunk;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Map;
 import java.util.TimeZone;
@@ -32,23 +35,20 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.Container;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.images.builder.Transferable;
-import org.testcontainers.utility.MountableFile;
 
 public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
 
-    public static String TEST_INDEX = "testindex";
     public static final String HEC_TOKEN = "TESTTEST-TEST-TEST-TEST-TESTTESTTEST";
-
     private static final String SPLUNK_IMAGE_NAME = ConfigProvider.getConfig().getValue("splunk.container.image", String.class);
+    private static final Path TEMP_DIR = Path.of("target", "temp");
     private static final int REMOTE_PORT = 8089;
     private static final int WEB_PORT = 8000;
     private static final int HEC_PORT = 8088;
     private static final Logger LOG = LoggerFactory.getLogger(SplunkTestResource.class);
-
+    public static String TEST_INDEX = "testindex";
     private GenericContainer<?> container;
 
     private String certName;
@@ -56,6 +56,14 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
     private String certPath;
     private String certPrivateKey;
     private String keystorePassword;
+
+    static {
+        try {
+            Files.createDirectories(TEMP_DIR);
+        } catch (IOException e) {
+            throw new RuntimeException("We cannot create temporary directory: " + TEMP_DIR, e);
+        }
+    }
 
     @Override
     public void init(Map<String, String> initArgs) {
@@ -90,44 +98,26 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
                 //extraction of private key can not be done by keytool (only openssl), but it can be done programmatically
                 byte[] concatenate = concatenateKeyAndCertificates(banner);
 
-                container.withCopyToContainer(Transferable.of(concatenate), "/opt/splunk/etc/auth/mycerts/myServerCert.pem")
-                        .withCopyToContainer(Transferable.of(Files.readAllBytes(Paths.get(caCertPath))),
-                                "/opt/splunk/etc/auth/mycerts/cacert.pem");
+                Path concenatedCertPath = copyToTempFolder(concatenate, "myServerCert.pem");
+                // must be READ_WRITE because ansible scripts are chowning them
+                container.withFileSystemBind(concenatedCertPath.toAbsolutePath().toString(),
+                        "/opt/splunk/etc/auth/mycerts/myServerCert.pem", BindMode.READ_WRITE);
+                container.withFileSystemBind(Paths.get(caCertPath).toAbsolutePath().toString(),
+                        "/opt/splunk/etc/auth/mycerts/cacert.pem", BindMode.READ_WRITE);
             } else {
                 LOG.debug("Internal certificates are used for Splunk server.");
             }
 
+            Path defaulYmlPath = copyResourceToTempFolder("default.yml", "default.yml");
+            // based on https://splunk.github.io/docker-splunk/ADVANCED.html#runtime-configuration
+            container.withFileSystemBind(defaulYmlPath.toAbsolutePath().toString(), "/tmp/defaults/default.yml",
+                    BindMode.READ_ONLY);
             container.start();
-
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_server.conf"),
-                    "/opt/splunk/etc/system/local/server.conf");
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
-                    "/opt/splunk/etc/system/local/inputs.conf");
-
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_server.conf"),
-                    "/opt/splunk/etc/system/local/server.conf");
-            container.copyFileToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
-                    "/opt/splunk/etc/system/local/inputs.conf");
-
-            container.execInContainer("sudo", "sed", "-i", "s/minFreeSpace = 5000/minFreeSpace = 100/",
-                    "/opt/splunk/etc/system/local/server.conf");
 
             /* uncomment for troubleshooting purposes - copy configuration from container
             container.copyFileFromContainer("/opt/splunk/etc/system/local/server.conf",
                     Path.of(getClass().getResource("/").getPath()).resolve("local_server_from_container.conf").toFile()
                             .getAbsolutePath());*/
-
-            assertExecResult(container.execInContainer("sudo", "microdnf", "--nodocs", "update", "tzdata"), "tzdata install");//install tzdata package so we can specify tz other than UTC
-
-            LOG.debug(banner);
-            LOG.debug("Restarting splunk server.");
-            LOG.debug(banner);
-
-            assertExecResult(container.execInContainer("sudo", "./bin/splunk", "restart"), "splunk restart");
-
-            container.execInContainer("sudo", "./bin/splunk", "add", "index", TEST_INDEX);
-            container.execInContainer("sudo", "./bin/splunk", "add", "tcp", String.valueOf(SplunkConstants.TCP_PORT),
-                    "-sourcetype", "TCP");
 
             /*uncomment for troubleshooting purposes - copy from container conf and log files
             container.copyFileFromContainer("/opt/splunk/etc/system/local/server.conf",
@@ -171,7 +161,6 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
             LOG.debug(banner);
 
             return m;
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -193,17 +182,6 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
         return (severCert + ca + pemKey).getBytes(StandardCharsets.UTF_8);
     }
 
-    private static void assertExecResult(Container.ExecResult res, String cmd) {
-        if (res.getExitCode() != 0) {
-            LOG.error("Command: " + cmd);
-            LOG.error("Stdout: " + res.getStdout());
-            LOG.error("Stderr: " + res.getStderr());
-            throw new RuntimeException("Command " + cmd + ") failed. " + res.getStdout());
-        } else {
-            LOG.debug("Command: " + cmd + " succeeded!");
-        }
-    }
-
     @Override
     public void stop() {
         try {
@@ -213,5 +191,26 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
         } catch (Exception e) {
             // Ignored
         }
+    }
+
+    public Path copyToTempFolder(byte[] bytes, String targetFileName) throws IOException {
+        Path targetFilePath = TEMP_DIR.resolve(targetFileName);
+        Files.write(targetFilePath, bytes);
+        return targetFilePath;
+    }
+
+    public Path copyResourceToTempFolder(String resourcePath, String targetFileName) throws IOException {
+        Path targetFilePath = TEMP_DIR.resolve(targetFileName);
+
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+
+        if (inputStream == null) {
+            throw new IOException("Resource not found on classpath: " + resourcePath);
+        }
+
+        try (inputStream) {
+            Files.copy(inputStream, targetFilePath, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return targetFilePath;
     }
 }
