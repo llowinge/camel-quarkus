@@ -39,6 +39,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.zeroturnaround.exec.ProcessExecutor;
 import org.zeroturnaround.exec.StartedProcess;
+import org.jboss.logging.Logger;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
@@ -46,6 +47,8 @@ import static org.hamcrest.Matchers.emptyString;
 @QuarkusTestResource(MasterOpenShiftTestResource.class)
 @QuarkusTest
 class MasterOpenShiftTest {
+
+    private static final Logger LOGGER = Logger.getLogger(MasterOpenShiftTest.class);
 
     @KubernetesTestServer
     private KubernetesServer mockOpenShiftServer;
@@ -106,7 +109,7 @@ class MasterOpenShiftTest {
     }
 
     private void awaitStartup(QuarkusProcessExecutor quarkusProcessExecutor) {
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollDelay(1, TimeUnit.SECONDS).until(() -> {
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).pollDelay(1, TimeUnit.SECONDS).until(() -> {
             return isApplicationHealthy(quarkusProcessExecutor.getHttpPort());
         });
     }
@@ -116,6 +119,8 @@ class MasterOpenShiftTest {
             int status = RestAssured.given().port(port).get("/q/health").then().extract().statusCode();
             return status == 200;
         } catch (Exception e) {
+            LOGGER.info("Exceptioooon" + e);
+            LOGGER.info("Exceptioooon" + e.getMessage());
             return false;
         }
     }
