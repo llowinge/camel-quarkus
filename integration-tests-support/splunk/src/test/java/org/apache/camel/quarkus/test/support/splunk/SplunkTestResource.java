@@ -17,9 +17,12 @@
 package org.apache.camel.quarkus.test.support.splunk;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Map;
 import java.util.TimeZone;
@@ -32,6 +35,7 @@ import org.eclipse.microprofile.config.ConfigProvider;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -97,13 +101,8 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
                 LOG.debug("Internal certificates are used for Splunk server.");
             }
 
-            container.withCopyToContainer(MountableFile.forClasspathResource("local_server.conf"),
-                    "/opt/splunk/etc/system/local/server.conf");
-            container.withCopyToContainer(MountableFile.forClasspathResource("local_inputs.conf"),
-                    "/opt/splunk/etc/system/local/inputs.conf");
-            container.withCopyToContainer(MountableFile.forClasspathResource("local_indexes.conf"),
-                    "/opt/splunk/etc/system/local/indexes.conf");
-
+            Path defaulYml = copyResourceToTempFolder( "default.yml","default.yml");
+            container.withFileSystemBind(defaulYml.toAbsolutePath().toString(), "/tmp/defaults/default.yml", BindMode.READ_ONLY);
             container.start();
 
             /* uncomment for troubleshooting purposes - copy configuration from container
@@ -195,5 +194,23 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
         } catch (Exception e) {
             // Ignored
         }
+    }
+
+    public Path copyResourceToTempFolder(String resourcePath, String targetFileName) throws IOException {
+        Path targetDir = Path.of("target", "temp");
+        Path targetFilePath = targetDir.resolve(targetFileName);
+
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+
+        if (inputStream == null) {
+            throw new IOException("Resource not found on classpath: " + resourcePath);
+        }
+
+        Files.createDirectories(targetDir);
+
+        try (inputStream) {
+            Files.copy(inputStream, targetFilePath, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return targetFilePath;
     }
 }
