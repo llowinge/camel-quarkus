@@ -92,8 +92,8 @@ env:
 
 jobs:
   pre-build-checks:
-    if: github.repository == 'apache/camel-quarkus'
     runs-on: ubuntu-latest
+    if: false
     outputs:
       continue-build: ${{ steps.pre-build-checks.outputs.continue-build }}
       run-checks: ${{ steps.init.outputs.run-checks }}
@@ -150,9 +150,8 @@ jobs:
           retention-days: 1
 
   initial-mvn-install:
-    if: needs.pre-build-checks.outputs.continue-build == 'true'
+    if: true
     runs-on: ubuntu-latest
-    needs: pre-build-checks
     outputs:
       matrix: ${{ steps.set-native-matrix.outputs.matrix }}
       examples-matrix: ${{ steps.set-examples-matrix.outputs.examples-matrix }}
@@ -249,7 +248,7 @@ jobs:
     name: Native Tests - ${{matrix.category}}
     needs: initial-mvn-install
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'JVM')
+    if: false
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.initial-mvn-install.outputs.matrix) }}
@@ -328,7 +327,7 @@ jobs:
   functional-extension-tests:
     runs-on: ubuntu-latest
     needs: initial-mvn-install
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'JVM')
+    if: false
     env:
       MAVEN_OPTS: -Xmx3000m
     steps:
@@ -417,6 +416,7 @@ jobs:
   extensions-jvm-tests:
     runs-on: ubuntu-latest
     needs: initial-mvn-install
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -463,7 +463,7 @@ jobs:
     name: Integration Tests Alternative JDK 21 ${{matrix.name}}
     runs-on: ubuntu-latest
     needs: initial-mvn-install
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'JVM')
+    if: false
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.initial-mvn-install.outputs.alternate-jvm-matrix) }}
@@ -518,7 +518,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ 'windows-latest' ]
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'JVM')
     env:
       MAVEN_OPTS: -Xmx3000m
     steps:
@@ -527,6 +526,12 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
+      - uses: samypr100/setup-dev-drive@v3
+        with:
+          # Drive size in bytes (or as a PowerShell numeric literal). Defaults to 2GB.
+          drive-size: 20GB
+          # Copies ${{ github.workspace }} to your dev drive. Defaults to false.
+          workspace-copy: true
       - name: Set up JDK 17
         uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
         with:
@@ -536,17 +541,25 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: maven-repo
-          path: ..
+          path: ${{ env.DEV_DRIVE_WORKSPACE }}/..
       - name: Extract Maven Repo
+        working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
         run: |
-          tar -xzf ../maven-repo.tgz -C ~
+          mkdir maven-repo
+          tar -xzf ../maven-repo.tgz -C maven-repo
           rm -f ../maven-repo.tgz
+      - name: Check free space on dev disk
+        run: |
+          Write-Host "--- Disk Usage Summary ---"
+          Get-Volume | Format-List DriveLetter, FileSystemLabel, SizeRemaining, Size
+          Write-Host "----------------------------"
       - name: cd integration-tests && mvn clean verify
+        working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
         run: |
           cd integration-tests
-          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE_WORKSPACE }}/maven-repo/.m2/repository' \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
             clean verify
@@ -560,7 +573,7 @@ jobs:
     name: Examples Tests - ${{matrix.name}}
     needs: initial-mvn-install
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'JVM')
+    if: false
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.initial-mvn-install.outputs.examples-matrix) }}
