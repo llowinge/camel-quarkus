@@ -150,7 +150,7 @@ jobs:
           retention-days: 1
 
   initial-mvn-install:
-    if: true
+    if: false
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-native-matrix.outputs.matrix }}
@@ -513,7 +513,6 @@ jobs:
 
   integration-tests-alternative-platform:
     runs-on: ${{ matrix.os }}
-    needs: initial-mvn-install
     strategy:
       fail-fast: false
       matrix:
@@ -542,6 +541,8 @@ jobs:
         with:
           name: maven-repo
           path: ${{ env.DEV_DRIVE_WORKSPACE }}/..
+          run-id: 19130066098
+          github-token: ${{ github.token }}
       - name: Extract Maven Repo
         working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
