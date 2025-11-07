@@ -212,7 +212,7 @@ jobs:
         with:
           name: maven-repo
           path: ${{ runner.temp }}/maven-repo.tgz
-          retention-days: 1
+          retention-days: 7
       - name: Setup Native Test Matrix
         id: set-native-matrix
         run: |
@@ -540,28 +540,76 @@ jobs:
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
         with:
           name: maven-repo
-          path: ${{ env.DEV_DRIVE_WORKSPACE }}/..
-          run-id: 19130066098
+          path: ${{ env.DEV_DRIVE }}
+          run-id: 19166300465
           github-token: ${{ github.token }}
       - name: Extract Maven Repo
-        working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
+        working-directory: ${{ env.DEV_DRIVE }}
         shell: bash
         run: |
           mkdir maven-repo
-          tar -xzf ../maven-repo.tgz -C maven-repo
-          rm -f ../maven-repo.tgz
+          mkdir tmp
+          tar -xzf maven-repo.tgz -C maven-repo
+          rm -f maven-repo.tgz
+          ls -la maven-repo/
       - name: Check free space on dev disk
         run: |
           Write-Host "--- Disk Usage Summary ---"
           Get-Volume | Format-List DriveLetter, FileSystemLabel, SizeRemaining, Size
           Write-Host "----------------------------"
-          powershell.exe -Command "Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess"
       - name: cd integration-tests && mvn clean verify
         working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
+        env:
+          TEMP: ${{ env.DEV_DRIVE }}\tmp
+          TMP: ${{ env.DEV_DRIVE }}\tmp
         run: |
           cd integration-tests/jasypt
-          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE_WORKSPACE }}/maven-repo/.m2/repository' \
+          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE }}\maven-repo\.m2\repository' \
+            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
+            --fail-at-end \
+            clean verify -X -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
+      - name: Report test failures
+        uses: ./.github/actions/test-summary-report
+        if: ${{ failure() }}
+        with:
+          test-report-xml-base-dir: integration-tests
+  integration-tests-ubuntu:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 'ubuntu-latest' ]
+    env:
+      MAVEN_OPTS: -Xmx3000m
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ env.CHECKOUT_REF }}
+          fetch-depth: 0
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Download Maven Repo
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: maven-repo
+          run-id: 19166300465
+          github-token: ${{ github.token }}
+          path: ..
+      - name: Extract Maven Repo
+        shell: bash
+        run: |
+          tar -xzf ../maven-repo.tgz -C ~
+          rm -f ../maven-repo.tgz
+      - name: cd integration-tests && mvn clean verify
+        shell: bash
+        run: |
+          cd integration-tests/jasypt
+          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
             clean verify -X -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
