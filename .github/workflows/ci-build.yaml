@@ -555,15 +555,16 @@ jobs:
           Write-Host "--- Disk Usage Summary ---"
           Get-Volume | Format-List DriveLetter, FileSystemLabel, SizeRemaining, Size
           Write-Host "----------------------------"
+          powershell.exe -Command "Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess"
       - name: cd integration-tests && mvn clean verify
         working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
         run: |
-          cd integration-tests
-          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE_WORKSPACE }}/maven-repo/.m2/repository' \
+          cd integration-tests/jasypt
+          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE_WORKSPACE }}/maven-repo/.m2/repository' \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
-            clean verify
+            clean verify -X -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
