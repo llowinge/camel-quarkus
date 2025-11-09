@@ -568,7 +568,7 @@ jobs:
           ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE }}\maven-repo\.m2\repository' \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
-            clean verify -X -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
+            clean verify -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
