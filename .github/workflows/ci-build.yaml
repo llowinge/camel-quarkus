@@ -518,7 +518,7 @@ jobs:
       matrix:
         os: [ 'windows-latest' ]
     env:
-      MAVEN_OPTS: -Xmx3000m
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -XX:+AlwaysPreTouch
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -554,9 +554,12 @@ jobs:
           ls -la maven-repo/
       - name: Check free space on dev disk
         run: |
+          Add-MpPreference -ExclusionPath "E:\"
+          Add-MpPreference -ExclusionProcess "java.exe"
           Write-Host "--- Disk Usage Summary ---"
           Get-Volume | Format-List DriveLetter, FileSystemLabel, SizeRemaining, Size
           Write-Host "----------------------------"
+          Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess
       - name: cd integration-tests && mvn clean verify
         working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
@@ -568,7 +571,12 @@ jobs:
           ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE }}\maven-repo\.m2\repository' \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
-            clean verify -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
+            clean verify
+      - name: JFR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jfr-recording-windows
+          path: ${{ github.workspace }}\flight_recording_windows.jfr
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
@@ -581,7 +589,7 @@ jobs:
       matrix:
         os: [ 'ubuntu-latest' ]
     env:
-      MAVEN_OPTS: -Xmx3000m
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}/flight_recording_ubuntu.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -XX:+AlwaysPreTouch
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -612,7 +620,12 @@ jobs:
           ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
-            clean verify -X -Dquarkus.log.level=TRACE -Dorg.slf4j.simpleLogger.dateTimeFormat=HH:mm:ss,SSS -Dorg.slf4j.simpleLogger.showDateTime=true -Dquarkus.debug.print-startup-times
+            clean verify
+      - name: JFR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jfr-recording-ubuntu
+          path: ${{ github.workspace }}/flight_recording_ubuntu.jfr
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
