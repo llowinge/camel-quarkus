@@ -611,6 +611,7 @@ jobs:
       - name: Extract Maven Repo
         shell: bash
         run: |
+          mkdir tmp
           tar -xzf ../maven-repo.tgz -C ~
           rm -f ../maven-repo.tgz
       - name: Check free space on dev disk
@@ -621,6 +622,9 @@ jobs:
           Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess
       - name: cd integration-tests && mvn clean verify
         shell: bash
+        env:
+          TEMP: ${{ github.workspace }}\tmp
+          TMP: ${{ github.workspace }}\tmp
         run: |
           cd integration-tests/jasypt
           ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
