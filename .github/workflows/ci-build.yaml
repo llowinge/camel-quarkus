@@ -513,12 +513,13 @@ jobs:
 
   windows-dev-disk:
     runs-on: ${{ matrix.os }}
+    if: true
     strategy:
       fail-fast: false
       matrix:
         os: [ 'windows-latest' ]
     env:
-      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_dev.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -XX:+AlwaysPreTouch
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_dev.jfr,dumponexit=true -Xmx3000m -XX:+PrintFlagsFinal
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -584,12 +585,13 @@ jobs:
           test-report-xml-base-dir: integration-tests
   windows-default:
     runs-on: ${{ matrix.os }}
+    if: true
     strategy:
       fail-fast: false
       matrix:
         os: [ 'windows-latest' ]
     env:
-      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -XX:+AlwaysPreTouch
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -XX:+PrintFlagsFinal
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -611,7 +613,7 @@ jobs:
       - name: Extract Maven Repo
         shell: bash
         run: |
-          mkdir tmp
+          mkdir "D:\\temp"
           mkdir maven-repo
           tar -xzf ../maven-repo.tgz -C maven-repo
           rm -f ../maven-repo.tgz
@@ -624,8 +626,8 @@ jobs:
       - name: cd integration-tests && mvn clean verify
         shell: bash
         env:
-          TEMP: ${{ github.workspace }}\tmp
-          TMP: ${{ github.workspace }}\tmp
+          TEMP: D:\\temp
+          TMP: D:\\temp
         run: |
           cd integration-tests
           ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
@@ -644,12 +646,13 @@ jobs:
           test-report-xml-base-dir: integration-tests
   ubuntu:
     runs-on: ${{ matrix.os }}
+    if: true
     strategy:
       fail-fast: false
       matrix:
         os: [ 'ubuntu-latest' ]
     env:
-      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}/flight_recording_ubuntu.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -XX:+AlwaysPreTouch
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}/flight_recording_ubuntu.jfr,dumponexit=true -Xmx3000m -XX:+PrintFlagsFinal
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -691,7 +694,97 @@ jobs:
         if: ${{ failure() }}
         with:
           test-report-xml-base-dir: integration-tests
-
+  benchmark:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Instalace FIO (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fio 
+      - name: Install FIO (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $fio_version = "3.41"
+          $fio_url = "https://github.com/axboe/fio/releases/download/fio-$fio_version/fio-$fio_version-x64.msi"
+          $fio_installer = "fio_installer.msi"
+          Invoke-WebRequest -Uri $fio_url -OutFile $fio_installer
+          Start-Process msiexec -ArgumentList "/i $fio_installer /qn /norestart" -Wait
+          $FIO_PATH = "C:\Program Files\FIO"
+          echo "PATH=$FIO_PATH;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Spuštění FIO I/O Benchmarku (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $FioDir = "fio_test_dir"
+          New-Item -Path $FioDir -ItemType Directory -Force
+          Add-MpPreference -ExclusionProcess "fio.exe"
+          Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess
+          $Status = (Get-MpPreference).DisableRealtimeMonitoring
+        
+          if ($Status -eq $false) {
+            Write-Host "STATUS: Povoleno (Real-time monitoring je ZAPNUTÝ)."
+          } else {
+            Write-Host "STATUS: Zakázáno (Real-time monitoring je VYPNUTÝ)."
+          }
+          fio --name=fio_write_test --thread --ioengine=psync --bs=4k --size=1G --rw=write --directory=fio_test_dir --output=fio_output.json
+      - name: Results
+        if: runner.os == 'Windows'
+        run: Get-Content fio_output.json          
+      - name: FIO I/O Benchmark
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir fio_test_dir
+          fio --name=fio_write_test --thread --ioengine=psync --bs=4k --size=1G --rw=write --directory=fio_test_dir --output=fio_output.json
+      - name: Results
+        if: runner.os == 'Linux'
+        run: |
+          cat fio_output.json
+  benchmark-win-devdrive:
+    strategy:
+      matrix:
+        os: [windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: samypr100/setup-dev-drive@v3
+        with:
+          drive-size: 20GB
+      - name: Install FIO (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          $fio_version = "3.41"
+          $fio_url = "https://github.com/axboe/fio/releases/download/fio-$fio_version/fio-$fio_version-x64.msi"
+          $fio_installer = "fio_installer.msi"
+          Invoke-WebRequest -Uri $fio_url -OutFile $fio_installer
+          Start-Process msiexec -ArgumentList "/i $fio_installer /qn /norestart" -Wait
+          $FIO_PATH = "C:\Program Files\FIO"
+          echo "PATH=$FIO_PATH;$env:PATH" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Run FIO I/O Benchmark (Windows Dev drive)
+        working-directory: ${{ env.DEV_DRIVE }}
+        shell: powershell
+        run: |
+          $FioDir = "fio_test_dir"
+          New-Item -Path $FioDir -ItemType Directory -Force
+          Add-MpPreference -ExclusionProcess "fio.exe"
+          Add-MpPreference -ExclusionPath "E:\"
+          Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess
+          $Status = (Get-MpPreference).DisableRealtimeMonitoring
+          
+          if ($Status -eq $false) {
+            Write-Host "STATUS: Povoleno (Real-time monitoring je ZAPNUTÝ)."
+          } else {
+            Write-Host "STATUS: Zakázáno (Real-time monitoring je VYPNUTÝ)."
+          }
+          fio --name=fio_write_test --thread --ioengine=psync --bs=4k --size=1G --rw=write --directory=fio_test_dir --output=fio_output.json
+      - name: Results
+        working-directory: ${{ env.DEV_DRIVE }}
+        run: Get-Content fio_output.json
   examples-tests:
     name: Examples Tests - ${{matrix.name}}
     needs: initial-mvn-install
