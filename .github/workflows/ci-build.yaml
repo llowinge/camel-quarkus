@@ -567,8 +567,8 @@ jobs:
           TEMP: ${{ env.DEV_DRIVE }}\tmp
           TMP: ${{ env.DEV_DRIVE }}\tmp
         run: |
-          cd integration-tests/jasypt
-          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE }}\maven-repo\.m2\repository' \
+          cd integration-tests
+          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.DEV_DRIVE }}\maven-repo\.m2\repository' \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
             clean verify
@@ -627,8 +627,8 @@ jobs:
           TEMP: ${{ github.workspace }}\tmp
           TMP: ${{ github.workspace }}\tmp
         run: |
-          cd integration-tests/jasypt
-          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+          cd integration-tests
+          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip -Dmaven.repo.local='${{ github.workspace }}\maven-repo\.m2\repository' \
             --fail-at-end \
             clean verify
@@ -676,8 +676,8 @@ jobs:
       - name: cd integration-tests && mvn clean verify
         shell: bash
         run: |
-          cd integration-tests/jasypt
-          ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+          cd integration-tests
+          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
             clean verify
