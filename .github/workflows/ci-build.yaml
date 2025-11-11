@@ -612,7 +612,8 @@ jobs:
         shell: bash
         run: |
           mkdir tmp
-          tar -xzf ../maven-repo.tgz -C ~
+          mkdir maven-repo
+          tar -xzf ../maven-repo.tgz -C maven-repo
           rm -f ../maven-repo.tgz
       - name: Check free space on dev disk
         run: |
@@ -628,7 +629,7 @@ jobs:
         run: |
           cd integration-tests/jasypt
           ../../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
-            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
+            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip -Dmaven.repo.local='${{ github.workspace }}\maven-repo\.m2\repository' \
             --fail-at-end \
             clean verify
       - name: JFR
