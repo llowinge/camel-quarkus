@@ -86,7 +86,7 @@ concurrency:
 env:
   LANG: en_US.UTF-8
   MAVEN_OPTS: -Xmx3000m
-  CQ_MAVEN_ARGS: -V -ntp -e -Daether.connector.http.connectionMaxTtl=120
+  CQ_MAVEN_ARGS: -V -e -Daether.connector.http.connectionMaxTtl=120
   TESTCONTAINERS_RYUK_DISABLED: true
   CHECKOUT_REF: ${{ github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' && github.head_ref || '' }}
 
@@ -591,7 +591,7 @@ jobs:
       matrix:
         os: [ 'windows-latest' ]
     env:
-      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -Xmn750m
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -614,8 +614,8 @@ jobs:
         shell: bash
         run: |
           mkdir "D:\\temp"
-          mkdir maven-repo
-          tar -xzf ../maven-repo.tgz -C maven-repo
+          mkdir "D:\\maven-repo"
+          tar -xzf ../maven-repo.tgz -C "D:\\maven-repo"
           rm -f ../maven-repo.tgz
       - name: Check free space on dev disk
         run: |
@@ -628,12 +628,13 @@ jobs:
         env:
           TEMP: D:\\temp
           TMP: D:\\temp
+          MAVEN_REPO_LOCAL: D:\\maven-repo
         run: |
           cd integration-tests
           ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
-            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip -Dmaven.repo.local='${{ github.workspace }}\maven-repo\.m2\repository' \
+            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip -Dmaven.repo.local='${{ env.MAVEN_REPO_LOCAL }}\.m2\repository' \
             --fail-at-end \
-            clean verify
+            clean verify -X
       - name: JFR
         uses: actions/upload-artifact@v4
         with:
