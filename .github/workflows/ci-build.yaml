@@ -150,7 +150,7 @@ jobs:
           retention-days: 1
 
   initial-mvn-install:
-    if: false
+    if: true
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-native-matrix.outputs.matrix }}
@@ -178,6 +178,7 @@ jobs:
       - name: Build Quarkus
         if: github.ref == 'refs/heads/quarkus-main' || github.base_ref == 'quarkus-main'
         run: |
+          cd ../
           git clone --depth 1 --branch main https://github.com/quarkusio/quarkus.git \
             && cd quarkus \
             && echo "Current Quarkus commit:" $(git rev-parse HEAD) \
@@ -207,11 +208,24 @@ jobs:
           tar -czf ${{ runner.temp }}/maven-repo.tgz -C ~ .m2/repository
           ls -lh ${{ runner.temp }}/maven-repo.tgz
           df -h /
+      - name: Tar Camel Quarkus project
+        shell: bash
+        run: |
+          ls -la .
+          tar -czf ${{ runner.temp }}/camel-quarkus.tgz .
+          ls -lh ${{ runner.temp }}/camel-quarkus.tgz
+          df -h /
       - name: Persist Maven Repo
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: maven-repo
           path: ${{ runner.temp }}/maven-repo.tgz
+          retention-days: 7
+      - name: Persist Camel Quarkus project
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        with:
+          name: camel-quarkus
+          path: ${{ runner.temp }}/camel-quarkus.tgz
           retention-days: 7
       - name: Setup Native Test Matrix
         id: set-native-matrix
@@ -513,7 +527,7 @@ jobs:
 
   windows-dev-disk:
     runs-on: ${{ matrix.os }}
-    if: true
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -585,13 +599,14 @@ jobs:
           test-report-xml-base-dir: integration-tests
   windows-default:
     runs-on: ${{ matrix.os }}
+    needs: initial-mvn-install
     if: true
     strategy:
       fail-fast: false
       matrix:
         os: [ 'windows-latest' ]
     env:
-      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal -Xmn750m
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -608,8 +623,6 @@ jobs:
         with:
           name: maven-repo
           path: ..
-          run-id: 19166300465
-          github-token: ${{ github.token }}
       - name: Extract Maven Repo
         shell: bash
         run: |
@@ -644,9 +657,75 @@ jobs:
         if: ${{ failure() }}
         with:
           test-report-xml-base-dir: integration-tests
+  windows-default-prebuilt:
+    runs-on: ${{ matrix.os }}
+    needs: initial-mvn-install
+    if: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ 'windows-latest' ]
+    env:
+      MAVEN_OPTS: -XX:StartFlightRecording=filename=${{ github.workspace }}\flight_recording_windows_default.jfr,dumponexit=true -Xmx3000m -Xms3000m -XX:+PrintFlagsFinal
+    steps:
+      - name: Set up JDK 17
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Download prebuilt Camel Quarkus
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: camel-quarkus
+          path: ..
+      - name: Download Maven Repo
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: maven-repo
+          path: ..
+      - name: Extract prebuilt Camel Quarkus
+        shell: bash
+        run: |
+          tar -xzf ../camel-quarkus.tgz -C .
+          rm -f ../camel-quarkus.tgz
+          ls -la
+      - name: Extract Maven Repo
+        shell: bash
+        run: |
+          mkdir "D:\\temp"
+          mkdir maven-repo
+          tar -xzf ../maven-repo.tgz -C maven-repo
+          rm -f ../maven-repo.tgz
+      - name: Check free space on dev disk
+        run: |
+          Write-Host "--- Disk Usage Summary ---"
+          Get-Volume | Format-List DriveLetter, FileSystemLabel, SizeRemaining, Size
+          Write-Host "----------------------------"
+          Get-MpPreference | Select-Object ExclusionPath, ExclusionProcess
+      - name: cd integration-tests && mvn clean verify
+        shell: bash
+        env:
+          TEMP: D:\\temp
+          TMP: D:\\temp
+        run: |
+          cd integration-tests
+          ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
+            -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip -Dmaven.repo.local='${{ github.workspace }}\maven-repo\.m2\repository' \
+            --fail-at-end \
+            verify
+      - name: JFR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jfr-recording-windows-default
+          path: ${{ github.workspace }}\flight_recording_windows_default.jfr
+      - name: Report test failures
+        uses: ./.github/actions/test-summary-report
+        if: ${{ failure() }}
+        with:
+          test-report-xml-base-dir: integration-tests
   ubuntu:
     runs-on: ${{ matrix.os }}
-    if: true
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -699,6 +778,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    if: false
     steps:
       - name: Instalace FIO (Linux)
         if: runner.os == 'Linux'
@@ -750,6 +830,7 @@ jobs:
       matrix:
         os: [windows-latest]
     runs-on: ${{ matrix.os }}
+    if: false
     steps:
       - uses: samypr100/setup-dev-drive@v3
         with:
