@@ -93,11 +93,6 @@ public class Langchain4jAgentTestResource extends WireMockTestResourceLifecycleM
 
     private Boolean isNodeJSInstallationExists() {
         try {
-            // TODO: Suppress MCP tests in GitHub Actions for windows - https://github.com/apache/camel-quarkus/issues/8007
-            if (OS.current().equals(OS.WINDOWS) && System.getenv("CI") != null) {
-                return false;
-            }
-
             Process process = new ProcessBuilder()
                     .command(ProcessUtils.getNpxExecutable(), "--version")
                     .start();
