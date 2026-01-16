@@ -67,22 +67,20 @@ public class Aws2TestEnvContext {
         this.credentialsProvider = useDefaultCredentialsProvider ? CredentialsProvider.defaultProvider
                 : CredentialsProvider.staticProvider;
 
-        localstack.ifPresent(ls -> {
-            for (Service service : exportCredentialsServices) {
-                String s = camelServiceComponentName(service);
-                if (s != null) {
-                    if (credentialsProvider == CredentialsProvider.staticProvider) {
-                        properties.put(s + ".access-key", accessKey);
-                        properties.put(s + ".secret-key", secretKey);
-                    }
-                    properties.put(s + ".region", region);
-
-                    properties.put(s + ".override-endpoint", "true");
-                    properties.put(s + ".uri-endpoint-override",
-                            ls.getEndpoint().toString());
+        for (Service service : exportCredentialsServices) {
+            String s = camelServiceComponentName(service);
+            if (s != null) {
+                if (credentialsProvider == CredentialsProvider.staticProvider) {
+                    properties.put(s + ".access-key", accessKey);
+                    properties.put(s + ".secret-key", secretKey);
                 }
+                properties.put(s + ".region", region);
+
+                properties.put(s + ".override-endpoint", "true");
+                properties.put(s + ".uri-endpoint-override",
+                        "http://127.0.0.1:4566");
             }
-        });
+        }
     }
 
     /**
@@ -180,15 +178,9 @@ public class Aws2TestEnvContext {
                                 : StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)));
         builder.region(Region.of(region));
 
-        if (localstack.isPresent()) {
-            builder
-                    .endpointOverride(localstack.get().getEndpoint())
-                    .region(Region.of(region));
-        } else if (service == Service.IAM) {
-            /* Avoid UnknownHostException: iam.eu-central-1.amazonaws.com */
-            builder.endpointOverride(URI.create("https://iam.amazonaws.com"));
-            builder.region(Region.of("us-east-1"));
-        }
+        builder
+                .endpointOverride(URI.create("http://127.0.0.1:4566"))
+                .region(Region.of(region));
 
         final C client = builder.build();
         closeables.add(client);
@@ -241,7 +233,7 @@ public class Aws2TestEnvContext {
     }
 
     public boolean isLocalStack() {
-        return localstack.isPresent();
+        return true;
     }
 
     public boolean isUseDefaultCredentialsProvider() {

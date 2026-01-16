@@ -27,7 +27,6 @@ import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
-import io.smallrye.common.os.OS;
 import org.apache.camel.component.aws.secretsmanager.SecretsManagerConstants;
 import org.apache.camel.component.aws.secretsmanager.SecretsManagerOperations;
 import org.apache.camel.quarkus.test.EnabledIf;
@@ -380,6 +379,6 @@ public class AwsSecretsManagerTest extends BaseAWs2TestSupport {
 
     private boolean canUseLambdaFunction() {
         // https://github.com/testcontainers/testcontainers-java/issues/11342
-        return OS.current() != OS.MAC || !MockBackendUtils.startMockBackend(false);
+        return true;
     }
 }

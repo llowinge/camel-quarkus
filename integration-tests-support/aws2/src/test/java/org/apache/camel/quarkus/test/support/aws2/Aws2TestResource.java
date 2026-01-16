@@ -29,8 +29,6 @@ import org.apache.camel.quarkus.test.mock.backend.MockBackendUtils;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkClient;
 
@@ -84,17 +82,9 @@ public final class Aws2TestResource implements QuarkusTestResourceLifecycleManag
             DockerImageName imageName = DockerImageName
                     .parse(ConfigProvider.getConfig().getValue("localstack.container.image", String.class))
                     .asCompatibleSubstituteFor("localstack/localstack");
-            LocalStackContainer localstack = new LocalStackContainer(imageName)
-                    .withServices(services);
-            localstack.withEnv("LS_LOG", localstackLogLevel);
-            localstack.withEnv("PROVIDER_OVERRIDE_CLOUDWATCH", "v1");
-            localstack.withEnv("AWS_ACCESS_KEY_ID", "testAccessKeyId"); //has to be longer then `test`, to work on FIPS systems
-            localstack.withEnv("AWS_SECRET_ACCESS_KEY", "testSecretKeyId");
-            localstack.withLogConsumer(new Slf4jLogConsumer(LOG));
-            localstack.start();
 
-            envContext = new Aws2TestEnvContext(localstack.getAccessKey(), localstack.getSecretKey(), localstack.getRegion(),
-                    useDefaultCredentialsProvider, Optional.of(localstack), exportCredentialsServices);
+            envContext = new Aws2TestEnvContext("test", "test", "us-east-1",
+                    useDefaultCredentialsProvider, Optional.empty(), exportCredentialsServices);
 
         } else {
             if (!startMockBackend && !realCredentialsProvided && !useDefaultCredentialsProvider) {
