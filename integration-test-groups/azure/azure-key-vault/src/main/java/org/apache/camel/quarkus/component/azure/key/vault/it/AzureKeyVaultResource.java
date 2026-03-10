@@ -16,6 +16,7 @@
  */
 package org.apache.camel.quarkus.component.azure.key.vault.it;
 
+import java.net.URI;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.azure.security.keyvault.secrets.models.KeyVaultSecret;
@@ -37,6 +38,8 @@ import org.apache.camel.ResolveEndpointFailedException;
 import org.apache.camel.component.azure.key.vault.KeyVaultConstants;
 import org.apache.camel.impl.event.CamelContextReloadedEvent;
 import org.jboss.logging.Logger;
+
+import org.eclipse.microprofile.config.ConfigProvider;
 
 @Path("/azure-key-vault")
 @ApplicationScoped
@@ -137,5 +140,13 @@ public class AzureKeyVaultResource {
     @Produces(MediaType.TEXT_PLAIN)
     public boolean contextReloadStatus() {
         return contextReloaded.get();
+    }
+
+    @Path("/configProperty/{propertyName}")
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public Response configProperty(@PathParam("propertyName") String propertyName) throws Exception {
+        String propertyValue = ConfigProvider.getConfig().getValue(propertyName, String.class);
+        return Response.ok(new URI("https://camel.apache.org/")).entity(propertyValue).build();
     }
 }

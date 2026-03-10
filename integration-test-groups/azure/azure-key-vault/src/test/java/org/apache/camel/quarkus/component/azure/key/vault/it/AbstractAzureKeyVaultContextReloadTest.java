@@ -47,7 +47,9 @@ abstract class AbstractAzureKeyVaultContextReloadTest {
 
     @Test
     void contextReload() {
-        String secretName = ConfigProvider.getConfig().getValue("camel.vault.azure.secrets", String.class).replace(".*", "");
+        String secretName = RestAssured.get("/azure-key-vault/configProperty/camel.vault.azure.secrets")
+                .then()
+                .statusCode(200).extract().body().asString().replace(".*", "");
         String secretValue = "Hello Camel Quarkus Azure Key Vault From Refresh";
         boolean reloadDetected = false;
         try {
