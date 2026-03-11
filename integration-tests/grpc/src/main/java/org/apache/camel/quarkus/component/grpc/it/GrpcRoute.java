@@ -58,6 +58,10 @@ public class GrpcRoute extends RouteBuilder {
 
         // Asynchronous consumer
         fromF("grpc://localhost:{{camel.grpc.test.async.server.port}}/%s", PING_PONG_SERVICE)
+                .log("HEHEHE: ${body}")
+                .process(exchange -> {
+                    System.out.println("*******" + exchange.getIn().getBody().getClass() + "**");
+                })
                 .process(new GrpcProcessor());
 
         // Synchronous consumer
@@ -71,6 +75,10 @@ public class GrpcRoute extends RouteBuilder {
         // Aggregation consumer strategy
         fromF("grpc://localhost:{{camel.grpc.test.sync.aggregation.server.port}}"
                 + "/%s?synchronous=true&consumerStrategy=AGGREGATION", PING_PONG_SERVICE)
+                .log("HEHEHE2: ${body}")
+                .process(exchange -> {
+                    System.out.println("*******" + exchange.getIn().getBody().getClass() + "**");
+                })
                 .process("syncPongResponseProcessor");
 
         fromF("grpc://localhost:{{camel.grpc.test.async.aggregation.server.port}}"
