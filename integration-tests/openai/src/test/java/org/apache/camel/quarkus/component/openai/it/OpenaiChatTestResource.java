@@ -28,6 +28,7 @@ public class OpenaiChatTestResource extends OpenaiTestResource {
 
         if (conf.get("camel.component.openai.baseUrl") == null) {
             conf.put("camel.component.openai.baseUrl", envOrDefault(OPENAI_ENV_CHAT_BASE_URL, OPENAI_API_URL));
+            System.setProperty("camel.component.openai.baseUrl", conf.get("camel.component.openai.baseUrl"));
         }
         return conf;
     }
