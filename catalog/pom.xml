@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.camel.quarkus</groupId>
         <artifactId>camel-quarkus-build-parent</artifactId>
-        <version>3.33.0</version>
+        <version>3.33.0.rhbac-SNAPSHOT</version>
         <relativePath>../poms/build-parent/pom.xml</relativePath>
     </parent>
 
@@ -4895,9 +4895,9 @@
                 <dependencies>
                     <!-- include camel-catalog on classpath -->
                     <dependency>
-                        <groupId>org.apache.camel</groupId>
-                        <artifactId>camel-catalog</artifactId>
-                        <version>${camel.version}</version>
+                        <groupId>org.apache.camel.quarkus</groupId>
+                        <artifactId>camel-quarkus-catalog</artifactId>
+                        <version>${camel-quarkus-community.version}</version>
                     </dependency>
                 </dependencies>
                 <executions>
@@ -4918,6 +4918,7 @@
                             <additionalExtensions>
                                 <additionalExtension>openai</additionalExtension>
                             </additionalExtensions>
+                            <extendClassPathCatalog>true</extendClassPathCatalog>
                         </configuration>
                     </execution>
                 </executions>
