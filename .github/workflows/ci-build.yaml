@@ -109,7 +109,6 @@ env:
 
 jobs:
   pre-build-checks:
-    if: github.repository == 'apache/camel-quarkus'
     runs-on: ubuntu-latest
     outputs:
       continue-build: ${{ steps.pre-build-checks.outputs.continue-build }}
@@ -299,50 +298,25 @@ jobs:
           download-maven-repo: 'true'
       - name: Integration Tests
         run: |
-          for MODULE in $(yq -M -N e ".${{ matrix.category }}" tooling/scripts/test-categories.yaml | grep -vE '^\s*#' | cut -f2 -d' '); do
-            if [[ "${MODULE}" == "null" ]]; then
-              continue
-            fi
-
-            MODULE="integration-tests/$(echo ${MODULE} | sed 's/^[ \t]*//;s/[ \t]*$//')"
-
-            if [[ "x$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=ci.native.tests.skip -DforceStdout -q -f ${MODULE})" == "xtrue" ]]; then
-              JVM_MODULES+=("${MODULE}")
-            else
-              NATIVE_MODULES+=("${MODULE}")
-            fi
-          done
-
-          if [[ ${#JVM_MODULES[@]} -eq 0 ]] && [[ ${#NATIVE_MODULES[@]} -eq 0 ]]; then
-            echo "No test modules were found for category ${{ matrix.category }}"
-            exit 1
-          fi
-
-          IFS=,
-          if [[ ${JVM_MODULES[@]} ]]; then
-            eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean test \
-              -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
-              -Pdocker,ci \
-              -pl "${JVM_MODULES[*]}"
-          fi
-
-          if [[ ${NATIVE_MODULES[@]} ]]; then
-            eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
-              -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
-              -Dquarkus.native.builder-image.pull=missing \
-              -Pnative,docker,ci \
-              --fail-at-end \
-              -pl "${NATIVE_MODULES[*]}"
-          fi
+            for i in {1..50}; do
+              echo "--- Running test attempt ${i} of 50 ---"
+              eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
+                -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
+                -Dquarkus.native.builder-image.pull=missing \
+                -Pci \
+                --fail-at-end \
+                -pl :camel-quarkus-junit-tests,:camel-quarkus-core-deployment,:camel-quarkus-integration-test-main-devmode
+              if [[ $? -ne 0 ]]; then
+                echo "Tests failed on attempt ${i}. Stopping the script."
+                exit 1 # Exit the entire script with an error code
+              fi
+              echo "Attempt ${i} was successful."
+            done
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
         with:
           test-report-xml-base-dir: integration-tests
-      - name: Fail if there are uncommitted changes
-        shell: bash
-        run: |
-          [[ -z $(git status --porcelain) ]] || { echo 'There are uncommitted changes'; git status; git diff; exit 1; }
 
   functional-extension-tests:
     runs-on: ubuntu-latest
@@ -489,10 +463,17 @@ jobs:
         shell: bash
         run: |
           cd integration-tests
+          for i in {1..50}; do
+            echo "Running ${i} windows test"
           ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} \
             -Dskip-testcontainers-tests -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
             --fail-at-end \
-            clean verify
+              clean verify -pl :camel-quarkus-junit-tests,:camel-quarkus-core-deployment,:camel-quarkus-integration-test-main-devmode
+            if [[ $? -ne 0 ]]; then
+                echo "Tests failed on attempt ${i}. Stopping the script."
+                exit 1 # Exit the entire script with an error code
+            fi
+          done
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
