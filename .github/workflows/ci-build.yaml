@@ -280,34 +280,6 @@ jobs:
           df -h /
       - name: Integration Tests
         run: |
-          for MODULE in $(yq -M -N e ".${{ matrix.category }}" tooling/scripts/test-categories.yaml | grep -vE '^\s*#' | cut -f2 -d' '); do
-            if [[ "${MODULE}" == "null" ]]; then
-              continue
-            fi
-
-            MODULE="integration-tests/$(echo ${MODULE} | sed 's/^[ \t]*//;s/[ \t]*$//')"
-
-            if [[ "x$(./mvnw org.apache.maven.plugins:maven-help-plugin:3.2.0:evaluate -Dexpression=ci.native.tests.skip -DforceStdout -q -f ${MODULE})" == "xtrue" ]]; then
-              JVM_MODULES+=("${MODULE}")
-            else
-              NATIVE_MODULES+=("${MODULE}")
-            fi
-          done
-
-          if [[ ${#JVM_MODULES[@]} -eq 0 ]] && [[ ${#NATIVE_MODULES[@]} -eq 0 ]]; then
-            echo "No test modules were found for category ${{ matrix.category }}"
-            exit 1
-          fi
-
-          IFS=,
-          if [[ ${JVM_MODULES[@]} ]]; then
-            eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean test \
-              -Dformatter.skip -Dimpsort.skip -Denforcer.skip \
-              -Pdocker,ci \
-              -pl "${JVM_MODULES[*]}"
-          fi
-
-          if [[ ${NATIVE_MODULES[@]} ]]; then
             for i in {1..50}; do
               echo "--- Running test attempt ${i} of 50 ---"
               eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean verify \
@@ -322,7 +294,6 @@ jobs:
               fi
               echo "Attempt ${i} was successful."
             done
-          fi
       - name: Report test failures
         uses: ./.github/actions/test-summary-report
         if: ${{ failure() }}
