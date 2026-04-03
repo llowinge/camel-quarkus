@@ -526,7 +526,6 @@ jobs:
           TMP: D:\\temp
           MAVEN_REPO_LOCAL: D:\\maven-repo\.m2\repository
         run: |
-          cd integration-tests
           for i in {1..50}; do
             echo "Running ${i} windows test"
             ../mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} -Dmaven.repo.local='${{ env.MAVEN_REPO_LOCAL }}' \
