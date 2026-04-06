@@ -104,6 +104,7 @@ group-05:
   - hl7
   - jaxb
   - oauth
+  - ocsf
   - once
   - mapstruct
   - ssh
