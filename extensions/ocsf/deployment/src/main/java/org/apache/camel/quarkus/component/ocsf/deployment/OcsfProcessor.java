@@ -16,14 +16,14 @@
  */
 package org.apache.camel.quarkus.component.ocsf.deployment;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceDirectoryBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.ReflectiveHierarchyBuildItem;
+import org.apache.camel.dataformat.ocsf.model.DetectionFinding;
 import org.apache.camel.dataformat.ocsf.model.OcsfEvent;
+import org.jboss.jandex.Type;
 
 class OcsfProcessor {
 
@@ -40,11 +40,20 @@ class OcsfProcessor {
     }
 
     @BuildStep
-    List<ReflectiveClassBuildItem> reflectiveClasses() {
-        List<ReflectiveClassBuildItem> items = new ArrayList<>();
-        items.add(ReflectiveClassBuildItem.builder(OcsfEvent.class).fields().methods().build());
-        items.add(ReflectiveClassBuildItem.builder("org.apache.camel.dataformat.ocsf.model").fields().methods().build());
-        items.add(ReflectiveClassBuildItem.builder("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule").build());
-        return items;
+    ReflectiveHierarchyBuildItem ocsfEventHierarchy() {
+        return ReflectiveHierarchyBuildItem.builder(Type.create(OcsfEvent.class)).ignoreNested(false).build();
+    }
+
+    @BuildStep
+    ReflectiveHierarchyBuildItem detectionFindingHierarchy() {
+        return ReflectiveHierarchyBuildItem.builder(Type.create(DetectionFinding.class)).ignoreNested(false).build();
+    }
+
+    @BuildStep
+    ReflectiveClassBuildItem jacksonSupport() {
+        return ReflectiveClassBuildItem.builder("com.fasterxml.jackson.datatype.jsr310.JavaTimeModule")
+                .constructors()
+                .methods()
+                .build();
     }
 }
