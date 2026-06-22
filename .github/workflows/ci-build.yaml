@@ -200,9 +200,8 @@ jobs:
           cd camel
           echo "Current Camel commit:" $(git rev-parse HEAD)
       - name: Build Quarkus
-        if: github.ref == 'refs/heads/quarkus-main' || github.base_ref == 'quarkus-main'
         run: |
-          git clone --depth 1 --branch main https://github.com/quarkusio/quarkus.git \
+          git clone --depth 1 --branch fix-devmodetest-race https://github.com/llowinge/quarkus.git \
             && cd quarkus \
             && echo "Current Quarkus commit:" $(git rev-parse HEAD) \
             && sed -i '/<module>integration-tests<\/module>/d' pom.xml \
@@ -215,6 +214,13 @@ jobs:
       - name: Setup Maven Cache
         id: maven-cache
         uses: ./.github/actions/setup-maven-cache
+        with:
+          maven-properties: |
+            jira-rest-client.version
+            quarkiverse-cxf.version
+      - name: Set Quarkus SNAPSHOT Version
+        run: |
+          sed -i 's/<quarkus.version>.*<\/quarkus.version>/<quarkus.version>3.37.999-SNAPSHOT<\/quarkus.version>/' pom.xml
       - name: Build Camel
         if: github.ref == 'refs/heads/camel-main' || github.base_ref == 'camel-main'
         run: |
@@ -225,14 +231,10 @@ jobs:
           ./mvnw -N cq:update-quarkus-metadata ${CQ_MAVEN_ARGS}
       - name: mvn clean install -DskipTests
         run: |
-          eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean install -DskipTests -Dquarkus.build.skip -Pformat
+          eval ./mvnw ${CQ_MAVEN_ARGS} ${BRANCH_OPTIONS} clean install -DskipTests -Dquarkus.build.skip -Pformat -T1C
       - name: Sync Maven properties
         run: |
           ./mvnw cq:sync-versions ${CQ_MAVEN_ARGS} -N
-      - name: Fail if there are uncommitted changes
-        shell: bash
-        run: |
-          [[ -z $(git status --porcelain | grep -v antora.yml) ]] || { echo 'There are uncommitted changes'; git status; git diff; exit 1; }
       - name: Tar Maven Repo
         shell: bash
         run: |
@@ -284,6 +286,9 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
+      - name: Set Quarkus SNAPSHOT Version
+        run: |
+          sed -i 's/<quarkus.version>.*<\/quarkus.version>/<quarkus.version>3.37.999-SNAPSHOT<\/quarkus.version>/' pom.xml
       - name: Reclaim Disk Space
         run: .github/reclaim-disk-space.sh
       - name: Set up JDK 17
@@ -350,6 +355,9 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
+      - name: Set Quarkus SNAPSHOT Version
+        run: |
+          sed -i 's/<quarkus.version>.*<\/quarkus.version>/<quarkus.version>3.37.999-SNAPSHOT<\/quarkus.version>/' pom.xml
       - name: Set up JDK 17
         uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
@@ -431,6 +439,9 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
+      - name: Set Quarkus SNAPSHOT Version
+        run: |
+          sed -i 's/<quarkus.version>.*<\/quarkus.version>/<quarkus.version>3.37.999-SNAPSHOT<\/quarkus.version>/' pom.xml
       - name: Set up JDK 17
         uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
@@ -470,6 +481,10 @@ jobs:
         with:
           ref: ${{ env.CHECKOUT_REF }}
           fetch-depth: 0
+      - name: Set Quarkus SNAPSHOT Version
+        shell: bash
+        run: |
+          sed -i 's/<quarkus.version>.*<\/quarkus.version>/<quarkus.version>3.37.999-SNAPSHOT<\/quarkus.version>/' pom.xml
       - name: Set up JDK 17
         uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
