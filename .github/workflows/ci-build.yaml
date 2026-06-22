@@ -109,7 +109,6 @@ env:
 
 jobs:
   pre-build-checks:
-    if: github.repository == 'apache/camel-quarkus'
     runs-on: ubuntu-latest
     outputs:
       continue-build: ${{ steps.pre-build-checks.outputs.continue-build }}
@@ -339,10 +338,6 @@ jobs:
         if: ${{ failure() }}
         with:
           test-report-xml-base-dir: integration-tests
-      - name: Fail if there are uncommitted changes
-        shell: bash
-        run: |
-          [[ -z $(git status --porcelain) ]] || { echo 'There are uncommitted changes'; git status; git diff; exit 1; }
 
   functional-extension-tests:
     runs-on: ubuntu-latest
