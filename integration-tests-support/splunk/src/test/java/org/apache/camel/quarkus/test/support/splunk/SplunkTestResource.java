@@ -18,12 +18,14 @@ package org.apache.camel.quarkus.test.support.splunk;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import io.quarkus.logging.Log;
@@ -36,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.images.builder.Transferable;
+import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
 
@@ -109,6 +112,7 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
                             .getAbsolutePath());*/
 
             String splunkHost = container.getHost();
+            Integer hecPort = container.getMappedPort(HEC_PORT);
 
             Map<String, String> m = Map.of(
                     SplunkConstants.PARAM_REMOTE_HOST, splunkHost,
@@ -116,7 +120,7 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
                     SplunkConstants.PARAM_HEC_TOKEN, HEC_TOKEN,
                     SplunkConstants.PARAM_TEST_INDEX, TEST_INDEX,
                     SplunkConstants.PARAM_REMOTE_PORT, container.getMappedPort(REMOTE_PORT).toString(),
-                    SplunkConstants.PARAM_HEC_PORT, container.getMappedPort(HEC_PORT).toString());
+                    SplunkConstants.PARAM_HEC_PORT, hecPort.toString());
 
             LOG.info(banner);
             LOG.info(String.format("Splunk UI running on: http://%s:%d", splunkHost, container.getMappedPort(WEB_PORT)));
@@ -124,6 +128,20 @@ public class SplunkTestResource implements QuarkusTestResourceLifecycleManager {
             LOG.debug(m.entrySet().stream().map(e -> e.getKey() + ": " + e.getValue()).sorted()
                     .collect(Collectors.joining("\n")));
             LOG.debug(banner);
+
+            // In Quarkus native, test can fail with `java.net.SocketException: Network is unreachable` if underlying network isn't ready yet
+            LOG.info("Waiting for Splunk network bridge ({}:{}) to be fully ready...", splunkHost, hecPort);
+
+            Awaitility.await()
+                    .atMost(Duration.ofSeconds(60))
+                    .pollInterval(Duration.ofMillis(500))
+                    .ignoreExceptions()
+                    .until(() -> {
+                        LOG.info("Trying to connect to Splunk HEC via socket.");
+                        try (Socket socket = new Socket(splunkHost, hecPort)) {
+                            return socket.isConnected();
+                        }
+                    });
 
             return m;
         } catch (Exception e) {
