@@ -16,6 +16,7 @@
  */
 package org.apache.camel.quarkus.component.splunk.hec.it;
 
+import java.time.Duration;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -25,6 +26,8 @@ import io.quarkus.test.common.ResourceArg;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import io.restassured.response.ExtractableResponse;
+import io.restassured.response.Response;
 import io.smallrye.certs.Format;
 import io.smallrye.certs.junit5.Certificate;
 import org.apache.camel.quarkus.test.DisabledOnArm;
@@ -34,6 +37,8 @@ import org.apache.camel.quarkus.test.support.splunk.SplunkTestResource;
 import org.awaitility.Awaitility;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.hamcrest.Matchers;
+import org.jboss.logging.Logger;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.Matchers.containsString;
@@ -48,6 +53,32 @@ import static org.hamcrest.Matchers.containsString;
 
 @DisabledOnArm
 public class SplunkHecTest {
+
+    private static final Logger LOG = Logger.getLogger(SplunkHecTest.class);
+
+    private static ExtractableResponse<Response> sendRequestWithWrongSsl(String body) {
+        return RestAssured.given()
+                .body(body)
+                .post("/splunk-hec/send/wrongSslContextParameters")
+                .then()
+                .extract();
+    }
+
+    @BeforeAll
+    public static void warmupSplunk() {
+        LOG.info("Warmup: Waiting for Splunk network routing and SSL to stabilize...");
+
+        Awaitility.await()
+                .atMost(Duration.ofSeconds(45))
+                .pollInterval(Duration.ofSeconds(1))
+                .ignoreExceptions()
+                .until(() -> {
+                    String responseBody = sendRequestWithWrongSsl("Warmup Ping").asString();
+                    return responseBody.contains("ssl exception") || responseBody.contains("Connection refused");
+                });
+
+        LOG.info("Warmup successful! Splunk integration is fully ready.");
+    }
 
     @Test
     public void produce() {
@@ -77,13 +108,12 @@ public class SplunkHecTest {
 
     @Test
     public void produceWithWrongCertificate() {
-        RestAssured.given()
-                .body("Hello Sheldon")
-                .post("/splunk-hec/send/wrongSslContextParameters")
-                .then()
+        ExtractableResponse<Response> response = sendRequestWithWrongSsl("Hello Sheldon");
+
+        response.response().then()
                 .statusCode(500)
-                .body(Matchers.either(org.hamcrest.core.StringContains.containsString("ssl exception"))
-                        .or(org.hamcrest.core.StringContains.containsString("Connection refused")));
+                .body(Matchers.either(Matchers.containsString("ssl exception"))
+                        .or(Matchers.containsString("Connection refused")));
     }
 
     @Test
